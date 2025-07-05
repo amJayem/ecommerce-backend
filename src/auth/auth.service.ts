@@ -60,6 +60,14 @@ export class AuthService {
     return { ...tokens, ...user };
   }
 
+  async logout(email: string) {
+    const user = await this.prisma.user.update({
+      where: { email },
+      data: { refreshToken: null }, // 🧨 Invalidate token
+    });
+    return { ...user, message: 'User logout successfully' };
+  }
+
   /**
    * Generate access + refresh tokens
    */
