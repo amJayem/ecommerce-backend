@@ -25,10 +25,11 @@ export class AuthService {
         email: dto.email,
         name: dto.name,
         password: hashed,
+        role: dto.role || 'customer', // Default if not sent
       },
     });
 
-    return this.signToken(user.id, user.email);
+    return this.signToken(user.id, user.email, user.role);
   }
 
   async login(dto: LoginDto) {
@@ -39,12 +40,16 @@ export class AuthService {
 
     const match = await bcrypt.compare(dto.password, user.password);
     if (!match) throw new BadRequestException('Invalid credentials');
-
-    return this.signToken(user.id, user.email);
+    const { access_token } = this.signToken(user.id, user.email, user.role);
+    return { access_token, ...user }; // Return user info along with token
   }
 
-  private signToken(userId: number, email: string): { access_token: string } {
-    const payload = { sub: userId, email };
+  private signToken(
+    userId: number,
+    email: string,
+    role: string,
+  ): { access_token: string } {
+    const payload = { sub: userId, email, role };
     const token = this.jwt.sign(payload);
     return { access_token: token };
   }

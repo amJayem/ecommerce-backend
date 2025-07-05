@@ -15,8 +15,7 @@ pnpm-debug.log*
 *.db
 
 
-# VSCode
-.vscode
+
 
 # OS
 .DS_Store
