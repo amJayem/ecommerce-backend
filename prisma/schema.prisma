@@ -27,8 +27,15 @@ model User {
 model Product {
   id          Int      @id @default(autoincrement())
   name        String
-  description String?
+  description String
   price       Float
+  imageUrl    String? // <-- optional for now
+  category    String? // <-- optional for now
+  stock       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  isFeatured  Boolean  @default(false)
+  brand       String?
+  discount    Float?
+  weight      Float?
 }
