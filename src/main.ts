@@ -10,11 +10,12 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.setGlobalPrefix(`api/v1`);
   app.enableCors({
     origin: ['http://localhost:3001'], // ✅ only allow your domain
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   });
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3333);
 }
 bootstrap();
