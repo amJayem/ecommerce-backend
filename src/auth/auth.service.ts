@@ -21,9 +21,12 @@ export class AuthService {
     // 2. Create the user in DB
     const user = await this.prisma.user.create({
       data: {
+        address: dto.address,
         email: dto.email,
+        isVerified: dto.isVerified,
         name: dto.name,
         password: hashed,
+        phoneNumber: dto.phoneNumber ?? null,
         role: dto.role || 'customer',
       },
     });
@@ -35,7 +38,9 @@ export class AuthService {
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
     // 5. Return both tokens to frontend
-    return { ...tokens, ...user };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, refreshToken, ...sanitizedUser } = user;
+    return { ...tokens, user: sanitizedUser };
   }
 
   async login(dto: LoginDto) {
@@ -91,21 +96,29 @@ export class AuthService {
   /**
    * Save hashed refresh token in DB
    */
+
   async updateRefreshToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { refreshToken },
+      data: { refreshToken: hashedRefreshToken },
     });
   }
 
   /**
    * Handle refresh token flow
    */
+
   async refreshTokens(refreshToken: string) {
     // 1. Find user with this refresh token
-    const user = await this.prisma.user.findFirst({
-      where: { refreshToken },
+    const users = await this.prisma.user.findMany({
+      where: {},
+      select: { id: true, email: true, role: true, refreshToken: true },
     });
+
+    const user = users.find(
+      (u) => u.refreshToken && bcrypt.compareSync(refreshToken, u.refreshToken),
+    );
 
     // 2. If not found, reject
     if (!user) throw new ForbiddenException('Access Denied');
