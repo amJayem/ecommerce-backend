@@ -42,21 +42,24 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: Response, // ✅ explicitly typed Express.Response
+    @Res({ passthrough: true }) res: Response, // allow Nest to manage response object
   ) {
+    // Call service to get access and refresh tokens
     const result = await this.authService.login(dto);
 
-    // ✅ Set refresh_token in an HTTP-only cookie
+    // Store refresh_token in httpOnly cookie
     res.cookie('refresh_token', result.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/auth/refresh',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+      httpOnly: true, // prevent JS access
+      secure: process.env.NODE_ENV === 'production', // secure on prod
+      sameSite: 'strict', // prevent CSRF
+      path: '/auth/refresh', // restrict cookie to refresh path
+      maxAge: 7 * 24 * 60 * 60 * 1000, // valid for 7 days
     });
 
-    // ✅ Return only the access_token to frontend
-    return { access_token: result.access_token };
+    // Return only access_token to frontend
+    return {
+      access_token: result.access_token,
+    };
   }
 
   /**
