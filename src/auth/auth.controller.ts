@@ -7,13 +7,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
 import { CurrentUser } from './decorator/current-user.decorator';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { Request, Response } from 'express';
 
 export type TokenPair = {
   access_token: string;
@@ -35,10 +35,7 @@ export class AuthController {
   /**
    * Login user and return access + refresh tokens
    */
-  // @Post('login')
-  // login(@Body() dto: LoginDto) {
-  //   return this.authService.login(dto);
-  // }
+
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -52,8 +49,16 @@ export class AuthController {
       httpOnly: true, // prevent JS access
       secure: process.env.NODE_ENV === 'production', // secure on prod
       sameSite: 'strict', // prevent CSRF
-      path: '/auth/refresh', // restrict cookie to refresh path
+      // path: '/auth/refresh', // restrict cookie to refresh path
       maxAge: 7 * 24 * 60 * 60 * 1000, // valid for 7 days
+    });
+
+    // ✅ Store access_token as well (optional: HttpOnly or readable by JS)
+    res.cookie('access_token', result.access_token, {
+      httpOnly: true, // Must be true for secure auth
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
 
     // Return only access_token to frontend
