@@ -5,15 +5,12 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtAuthGuard } from './jwt/jwt-auth.guard';
-import { CurrentUser } from './decorator/current-user.decorator';
 
 export type TokenPair = {
   access_token: string;
@@ -99,11 +96,21 @@ export class AuthController {
     return { access_token: result.access_token };
   }
 
-  @UseGuards(JwtAuthGuard)
+  // NestJS AuthController
   @Post('logout')
-  logout(@CurrentUser() user: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-    return this.authService.logout(user.email);
+  logout(@Res({ passthrough: true }) res: Response) {
+    // Clear cookies
+    res.cookie('access_token', '', {
+      httpOnly: true,
+      expires: new Date(0),
+      path: '/',
+    });
+    res.cookie('refresh_token', '', {
+      httpOnly: true,
+      expires: new Date(0),
+      path: '/',
+    });
+    return { message: 'Logged out' };
   }
 }
 
