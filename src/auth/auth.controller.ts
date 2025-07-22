@@ -9,7 +9,6 @@ import {
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 
 export type TokenPair = {
@@ -46,7 +45,7 @@ export class AuthController {
       httpOnly: true, // prevent JS access
       secure: process.env.NODE_ENV === 'production', // secure on prod
       sameSite: 'strict', // prevent CSRF
-      // path: '/auth/refresh', // restrict cookie to refresh path
+      path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000, // valid for 7 days
     });
 
@@ -55,6 +54,7 @@ export class AuthController {
       httpOnly: true, // Must be true for secure auth
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
+      path: '/', // ensure consistent path
       maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
 
@@ -69,7 +69,6 @@ export class AuthController {
    */
   @Post('refresh')
   async refresh(
-    @Body() dto: RefreshTokenDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ access_token: string }> {
@@ -89,7 +88,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/auth/refresh',
+      path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -103,12 +102,12 @@ export class AuthController {
     res.cookie('access_token', '', {
       httpOnly: true,
       expires: new Date(0),
-      path: '/',
+      path: '/', // ensure consistent path
     });
     res.cookie('refresh_token', '', {
       httpOnly: true,
       expires: new Date(0),
-      path: '/',
+      path: '/', // ensure consistent path
     });
     return { message: 'Logged out' };
   }
