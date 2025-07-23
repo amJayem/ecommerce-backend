@@ -3,6 +3,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderService } from './order.service';
 import { Roles } from '../auth/decorator/roles.decorator';
 import { RolesGuard } from '../auth/decorator/roles.guard';
+import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 
 @Controller('orders')
 export class OrderController {
@@ -15,7 +16,8 @@ export class OrderController {
   }
 
   // Admin only: Get all orders
-  @UseGuards(RolesGuard)
+  // Use both JwtAuthGuard (to authenticate and set request.user) and RolesGuard (to check for admin role)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get()
   async getOrders() {
@@ -23,7 +25,8 @@ export class OrderController {
   }
 
   // Admin only: Get order by ID
-  @UseGuards(RolesGuard)
+  // Use both JwtAuthGuard and RolesGuard for role-based access
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get(':id')
   async getOrderById(@Param('id') id: string) {

@@ -10,9 +10,9 @@ import { ConfigService } from '@nestjs/config';
   imports: [
     JwtModule.registerAsync({
       useFactory: (config: ConfigService) => ({
-        // ⬇️ access‑token secret + lifetime
-        secret: config.get<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION') },
+        // Load JWT secret from environment variable JWT_SECRET using ConfigService
+        secret: config.get<string>('JWT_SECRET'), // use JWT_SECRET everywhere
+        signOptions: { expiresIn: '15m' },
       }),
       inject: [ConfigService],
     }),
