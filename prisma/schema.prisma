@@ -42,4 +42,26 @@ model Product {
   brand       String?
   discount    Float?
   weight      Float?
+  orderItems  OrderItem[] // Relation to OrderItem for Prisma
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  // User is optional for now since user system is not implemented
+  userId     Int?        // Will be null for guest orders
+  status     String      @default("pending")
+  total      Float
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      OrderItem[]
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   Int
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int
+  price     Float
 }
