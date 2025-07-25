@@ -19,7 +19,7 @@ async function bootstrap() {
   );
   app.setGlobalPrefix(prefix);
   app.enableCors({
-    origin: ['http://localhost:3000'], // ✅ only allow your domain
+    origin: ['http://localhost:3000', 'http://localhost:3001'], // ✅ only allow your domain
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   });
