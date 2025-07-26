@@ -8,10 +8,10 @@
   "scripts": {
     "build": "npx prisma generate && npx nest build",
     "format": "prettier --write .",
-    "start": "node dist/main",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "npx prisma migrate deploy && node dist/main",
+    "start:prod": "npx prisma migrate deploy && node dist/src/main.js",
     "lint": "eslint . --ext .ts",
     "test": "jest",
     "test:watch": "jest --watch",
