@@ -18,12 +18,20 @@ async function bootstrap() {
     }),
   );
   app.setGlobalPrefix(prefix);
+
+  // Get CORS origins from environment variables
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin) =>
+    origin.trim(),
+  );
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'], // ✅ only allow your domain
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   });
+
   await app.listen(port, () => {
+    console.log(`✅ CORS origins: ${corsOrigins?.join(', ')}`);
     console.log(`✅ Server running on: http://localhost:${port}${prefix}`);
   });
 }
