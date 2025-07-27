@@ -58,8 +58,12 @@ export class AuthController {
       maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
 
-    // Return only access_token to frontend
+    // Return user data and access_token to frontend
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, refreshToken, refresh_token, access_token, ...userData } =
+      result;
     return {
+      user: userData,
       access_token: result.access_token,
     };
   }
@@ -84,6 +88,7 @@ export class AuthController {
     // ✅ AuthService expects string (not string | undefined)
     const result: TokenPair = await this.authService.refreshTokens(token);
 
+    // Set refresh_token cookie
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -92,24 +97,51 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    // ✅ Set access_token as cookie
+    res.cookie('access_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/', // ensure consistent path
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
     return { access_token: result.access_token };
   }
 
   // NestJS AuthController
   @Post('logout')
-  logout(@Res({ passthrough: true }) res: Response) {
-    // Clear cookies
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    try {
+      // Get user from request (if authenticated)
+      const user = (req as { user?: { email: string } }).user;
+
+      // If user is authenticated, invalidate their refresh token in DB
+      if (user?.email) {
+        await this.authService.logout(user.email);
+      }
+    } catch (error) {
+      // Continue with logout even if DB operation fails
+      console.error('Logout error:', error);
+    }
+
+    // Clear cookies regardless of DB operation
     res.cookie('access_token', '', {
       httpOnly: true,
       expires: new Date(0),
       path: '/', // ensure consistent path
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
     });
     res.cookie('refresh_token', '', {
       httpOnly: true,
       expires: new Date(0),
       path: '/', // ensure consistent path
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
     });
-    return { message: 'Logged out' };
+
+    return { message: 'Logged out successfully' };
   }
 }
 
