@@ -22,12 +22,13 @@ async function bootstrap() {
   // Get CORS origins from environment variables
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin) =>
     origin.trim(),
-  );
+  ) || ['http://localhost:3000', 'http://localhost:3001'];
 
   app.enableCors({
     origin: corsOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   });
 
   await app.listen(port, () => {

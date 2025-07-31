@@ -26,6 +26,8 @@ model User {
   phoneNumber  String? // Optional field
   role         String   @default("customer")
   refreshToken String? // ⬅️ hashed refresh token
+
+  @@index([refreshToken])
 }
 
 model Product {

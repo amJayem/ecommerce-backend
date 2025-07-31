@@ -5,7 +5,9 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -17,6 +19,7 @@ export type TokenPair = {
 };
 
 @Controller('auth')
+@UseGuards(ThrottlerGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -58,13 +61,12 @@ export class AuthController {
       maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
 
-    // Return user data and access_token to frontend
+    // Return only user data to frontend (tokens are in HttpOnly cookies)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, refreshToken, refresh_token, access_token, ...userData } =
       result;
     return {
       user: userData,
-      access_token: result.access_token,
     };
   }
 

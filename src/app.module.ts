@@ -6,6 +6,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { ProductModule } from './product/product.module';
 import { OrderModule } from './order/order.module';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -13,6 +14,12 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     OrderModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 10, // 10 requests per minute
+      },
+    ]),
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

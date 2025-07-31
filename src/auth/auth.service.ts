@@ -5,6 +5,8 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AuditService } from './audit.service';
+import { AccountLockoutService } from './account-lockout.service';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +14,8 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private auditService: AuditService,
+    private lockoutService: AccountLockoutService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -44,16 +48,35 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    // 0. Check if account is locked
+    if (this.lockoutService.isAccountLocked(dto.email)) {
+      const remainingTime = this.lockoutService.getLockoutTimeRemaining(
+        dto.email,
+      );
+      const minutes = Math.ceil(remainingTime / 60000);
+      throw new ForbiddenException(
+        `Account locked. Try again in ${minutes} minutes.`,
+      );
+    }
+
     // 1. Find the user
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
-    if (!user) throw new ForbiddenException('User not found');
+    if (!user) {
+      this.lockoutService.recordFailedAttempt(dto.email);
+      this.auditService.logLoginFailed(dto.email, 'User not found');
+      throw new ForbiddenException('User not found');
+    }
 
     // 2. Check password
     const isValid = await bcrypt.compare(dto.password, user.password);
-    if (!isValid) throw new ForbiddenException('Invalid credentials');
+    if (!isValid) {
+      this.lockoutService.recordFailedAttempt(dto.email);
+      this.auditService.logLoginFailed(dto.email, 'Invalid password');
+      throw new ForbiddenException('Invalid credentials');
+    }
 
     // 3. Generate tokens
     const tokens = await this.getTokens(user.id, user.email, user.role);
@@ -61,7 +84,11 @@ export class AuthService {
     // 4. Store refresh token in DB
     await this.updateRefreshToken(user.id, tokens.refresh_token);
 
-    // 5. Return both tokens to frontend
+    // 5. Log successful login and clear lockout
+    this.lockoutService.recordSuccessfulLogin(user.email);
+    this.auditService.logLoginSuccess(user.id, user.email);
+
+    // 6. Return both tokens to frontend
     return { ...tokens, ...user };
   }
 
@@ -110,7 +137,7 @@ export class AuthService {
    */
 
   async refreshTokens(refreshToken: string) {
-    // 1. Find user with this refresh token
+    // 1. Find user with this refresh token (temporarily revert to original)
     const users = await this.prisma.user.findMany({
       where: {},
       select: { id: true, email: true, role: true, refreshToken: true },
