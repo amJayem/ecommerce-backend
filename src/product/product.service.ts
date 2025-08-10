@@ -7,18 +7,37 @@ export class ProductService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateProductDto) {
-    console.log('hello');
+    console.log('Creating product with data:', data);
     return this.prisma.product.create({
       data: {
         name: data.name,
-        price: data.price,
+        slug: data.slug,
         description: data.description,
+        price: data.price,
+        salePrice: data.salePrice,
+        imageUrl: data.imageUrl,
+        coverImage: data.coverImage,
+        images: data.images || [],
+        category: data.category,
+        categoryId: data.categoryId,
+        stock: data.stock,
+        status: data.status || 'draft',
+        tags: data.tags || [],
+        sku: data.sku,
+        isFeatured: data.isFeatured || false,
+        brand: data.brand,
+        discount: data.discount,
+        weight: data.weight,
       },
     });
   }
 
   async findAll() {
-    return this.prisma.product.findMany();
+    return this.prisma.product.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
   async findOne(id: number) {
@@ -28,7 +47,15 @@ export class ProductService {
   }
 
   async update(id: number, data: Partial<CreateProductDto>) {
-    return this.prisma.product.update({ where: { id }, data });
+    // Filter out undefined values to avoid overwriting with null
+    const updateData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined),
+    );
+
+    return this.prisma.product.update({
+      where: { id },
+      data: updateData,
+    });
   }
 
   async remove(id: number) {
