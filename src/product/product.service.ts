@@ -7,58 +7,146 @@ export class ProductService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateProductDto) {
-    console.log('Creating product with data:', data);
-    return this.prisma.product.create({
-      data: {
-        name: data.name,
-        slug: data.slug,
-        description: data.description,
-        price: data.price,
-        salePrice: data.salePrice,
-        imageUrl: data.imageUrl,
-        coverImage: data.coverImage,
-        images: data.images || [],
-        category: data.category,
-        categoryId: data.categoryId,
-        stock: data.stock,
-        status: data.status || 'draft',
-        tags: data.tags || [],
-        sku: data.sku,
-        isFeatured: data.isFeatured || false,
-        brand: data.brand,
-        discount: data.discount,
-        weight: data.weight,
-      },
-    });
+    try {
+      console.log('Creating product with data:', data);
+      
+      // Ensure arrays are properly formatted
+      const images = Array.isArray(data.images) ? data.images : [];
+      const tags = Array.isArray(data.tags) ? data.tags : [];
+      
+      const product = await this.prisma.product.create({
+        data: {
+          name: data.name,
+          slug: data.slug || '',
+          description: data.description,
+          price: data.price,
+          salePrice: data.salePrice || null,
+          imageUrl: data.imageUrl || null,
+          coverImage: data.coverImage || null,
+          images: images,
+          category: data.category || null,
+          categoryId: data.categoryId || null,
+          stock: data.stock,
+          status: data.status || 'draft',
+          tags: tags,
+          sku: data.sku || null,
+          isFeatured: data.isFeatured || false,
+          brand: data.brand || null,
+          discount: data.discount || null,
+          weight: data.weight || null,
+        },
+      });
+      
+      return product;
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
   }
 
   async findAll() {
-    return this.prisma.product.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    try {
+      // Use Prisma's select to explicitly select fields and provide defaults for nullable fields
+      const products = await this.prisma.product.findMany({
+        orderBy: {
+          createdAt: 'desc',
+        },
+        // Don't use select as it might exclude fields we need
+      });
+      
+      // Transform products to ensure all fields from the updated schema exist
+      return products.map(product => ({
+        ...product,
+        slug: product.slug || '', // Provide empty string for null slugs
+        salePrice: product.salePrice || null,
+        coverImage: product.coverImage || null,
+        images: Array.isArray(product.images) ? product.images : [],
+        categoryId: product.categoryId || null,
+        status: product.status || 'draft',
+        tags: Array.isArray(product.tags) ? product.tags : [],
+        sku: product.sku || null,
+      }));
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      // Log more details about the error
+      if (error.code === 'P2032') {
+        console.error('Prisma error details:', error.meta);
+      }
+      throw error;
+    }
   }
 
   async findOne(id: number) {
-    return this.prisma.product.findUnique({
-      where: { id },
-    });
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id },
+      });
+      
+      if (!product) return null;
+      
+      // Transform product to ensure all fields from the updated schema exist
+      return {
+        ...product,
+        slug: product.slug || '',
+        salePrice: product.salePrice || null,
+        coverImage: product.coverImage || null,
+        images: Array.isArray(product.images) ? product.images : [],
+        categoryId: product.categoryId || null,
+        status: product.status || 'draft',
+        tags: Array.isArray(product.tags) ? product.tags : [],
+        sku: product.sku || null,
+      };
+    } catch (error) {
+      console.error(`Error fetching product with id ${id}:`, error);
+      throw error;
+    }
   }
 
   async update(id: number, data: Partial<CreateProductDto>) {
-    // Filter out undefined values to avoid overwriting with null
-    const updateData = Object.fromEntries(
-      Object.entries(data).filter(([_, value]) => value !== undefined),
-    );
+    try {
+      // Filter out undefined values to avoid overwriting with null
+      const updateData = Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => value !== undefined),
+      );
 
-    return this.prisma.product.update({
-      where: { id },
-      data: updateData,
-    });
+      // Ensure arrays are properly formatted
+      if (updateData.images && !Array.isArray(updateData.images)) {
+        updateData.images = [];
+      }
+      
+      if (updateData.tags && !Array.isArray(updateData.tags)) {
+        updateData.tags = [];
+      }
+
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: updateData,
+      });
+      
+      // Transform product to ensure all fields from the updated schema exist
+      return {
+        ...product,
+        slug: product.slug || '',
+        salePrice: product.salePrice || null,
+        coverImage: product.coverImage || null,
+        images: Array.isArray(product.images) ? product.images : [],
+        categoryId: product.categoryId || null,
+        status: product.status || 'draft',
+        tags: Array.isArray(product.tags) ? product.tags : [],
+        sku: product.sku || null,
+      };
+    } catch (error) {
+      console.error(`Error updating product with id ${id}:`, error);
+      throw error;
+    }
   }
 
   async remove(id: number) {
-    return this.prisma.product.delete({ where: { id } });
+    try {
+      return this.prisma.product.delete({ where: { id } });
+    } catch (error) {
+      console.error(`Error deleting product with id ${id}:`, error);
+      throw error;
+    }
   }
 }

@@ -1,77 +1,69 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-datasource db {
-  url      = env("DATABASE_URL")
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
-  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  address      String   @default("N/A")
-  avatarUrl    String? // Optional field
+  id           Int      @id @default(autoincrement())
   createdAt    DateTime @default(now())
   email        String   @unique
-  id           Int      @id @default(autoincrement())
-  isVerified   Boolean  @default(false)
   name         String
   password     String
-  phoneNumber  String? // Optional field
   role         String   @default("customer")
-  refreshToken String? // ⬅️ hashed refresh token
+  refreshToken String?
+  address      String   @default("N/A")
+  avatarUrl    String?
+  isVerified   Boolean  @default(false)
+  phoneNumber  String?
 
   @@index([refreshToken])
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
-  slug        String?   @unique // New field for SEO-friendly URLs
-  description String
   price       Float
-  salePrice   Float?   // New field for discounted price
-  imageUrl    String?  // Keep existing field for backward compatibility
-  coverImage  String?  // New field for main product image
-  images      String[] @default([]) // New field for additional images array
-  category    String?  // Keep existing field for backward compatibility
-  categoryId  String?  // New field for category reference
-  stock       Int      @default(0)
-  status      String   @default("draft") // New field: 'draft' or 'published'
-  tags        String[] @default([]) // New field for product tags
-  sku         String?  // New field for stock keeping unit
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isFeatured  Boolean  @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  description String
   brand       String?
+  category    String?
   discount    Float?
+  imageUrl    String?
+  isFeatured  Boolean     @default(false)
+  stock       Int         @default(0)
   weight      Float?
-  orderItems  OrderItem[] // Relation to OrderItem for Prisma
+  categoryId  String?
+  coverImage  String?
+  images      String[]    @default([])
+  salePrice   Float?
+  sku         String?
+  slug        String?     @unique
+  status      String      @default("draft")
+  tags        String[]    @default([])
+  orderItems  OrderItem[]
 }
 
 model Order {
-  id         Int         @id @default(autoincrement())
-  // User is optional for now since user system is not implemented
-  userId     Int?        // Will be null for guest orders
-  status     String      @default("pending")
-  total      Float
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  items      OrderItem[]
+  id        Int         @id @default(autoincrement())
+  userId    Int?
+  status    String      @default("pending")
+  total     Float
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
 }
 
 model OrderItem {
-  id        Int      @id @default(autoincrement())
-  order     Order    @relation(fields: [orderId], references: [id])
+  id        Int     @id @default(autoincrement())
   orderId   Int
-  product   Product  @relation(fields: [productId], references: [id])
   productId Int
   quantity  Int
   price     Float
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 }
