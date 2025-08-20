@@ -42,7 +42,7 @@ model Product {
   images      String[]    @default([])
   salePrice   Float?
   sku         String?
-  slug        String?     @unique
+  slug        String      @unique @default("")
   status      String      @default("draft")
   tags        String[]    @default([])
   orderItems  OrderItem[]
