@@ -3,15 +3,21 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.endOfLine": "lf",
   "workbench.colorCustomizations": {
-    "titleBar.activeBackground": "#7b0c0c",
+    "titleBar.activeBackground": "#5b348f",
+    "titleBar.inactiveBackground": "#2b38b6",
     "titleBar.activeForeground": "#ffffff",
     "editor.lineHighlightBackground": "#1073cf9e",
     "editor.lineHighlightBorder": "#9fced11f",
     "editor.background": "#0d1117",
-    "sideBar.background": "#122064",
-    "activityBar.background": "#4422b2",
+    "sideBar.background": "#2c165044",
+    "sideBar.foreground": "#ffffff",
+    "sideBar.border": "#d65205",
+    "activityBar.background": "#2c1650",
     "activityBar.activeBackground": "#0c7337",
     "settings.headerBorder": "#f21010",
-    "statusBar.background": "#09a8c7"
+    "statusBar.background": "#09a8c7",
+    "statusBar.foreground": "#ffffff",
+    "activityBar.foreground": "#ffffff",
+    "editorCursor.foreground": "#ffffff"
   }
 }

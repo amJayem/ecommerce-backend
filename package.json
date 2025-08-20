@@ -9,7 +9,7 @@
     "build": "npx prisma generate && npx prisma migrate deploy && npx nest build",
     "format": "prettier --write .",
     "start": "node dist/src/main.js",
-    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
     "lint": "eslint . --ext .ts",

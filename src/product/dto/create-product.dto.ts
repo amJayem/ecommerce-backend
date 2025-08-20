@@ -13,9 +13,9 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  slug: string;
+  slug?: string;
 
   @IsNotEmpty()
   @IsString()

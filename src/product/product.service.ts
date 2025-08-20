@@ -6,18 +6,49 @@ import { CreateProductDto } from './dto/create-product.dto';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
+  private generateSlugFromName(name: string): string {
+    return name
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
+  private async ensureUniqueSlug(baseSlug: string): Promise<string> {
+    let candidate = baseSlug || 'product';
+    let suffix = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const existing = await this.prisma.product.findFirst({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+      suffix += 1;
+      candidate = `${baseSlug}-${suffix}`;
+    }
+  }
+
   async create(data: CreateProductDto) {
     try {
       console.log('Creating product with data:', data);
-      
+
       // Ensure arrays are properly formatted
       const images = Array.isArray(data.images) ? data.images : [];
       const tags = Array.isArray(data.tags) ? data.tags : [];
-      
+
+      const baseSlug =
+        data.slug && data.slug.trim().length > 0
+          ? this.generateSlugFromName(data.slug)
+          : this.generateSlugFromName(data.name);
+      const uniqueSlug = await this.ensureUniqueSlug(baseSlug);
+
       const product = await this.prisma.product.create({
         data: {
           name: data.name,
-          slug: data.slug || '',
+          slug: uniqueSlug,
           description: data.description,
           price: data.price,
           salePrice: data.salePrice || null,
@@ -36,7 +67,7 @@ export class ProductService {
           weight: data.weight || null,
         },
       });
-      
+
       return product;
     } catch (error) {
       console.error('Error creating product:', error);
@@ -53,9 +84,9 @@ export class ProductService {
         },
         // Don't use select as it might exclude fields we need
       });
-      
+
       // Transform products to ensure all fields from the updated schema exist
-      return products.map(product => ({
+      return products.map((product) => ({
         ...product,
         slug: product.slug || '', // Provide empty string for null slugs
         salePrice: product.salePrice || null,
@@ -81,9 +112,9 @@ export class ProductService {
       const product = await this.prisma.product.findUnique({
         where: { id },
       });
-      
+
       if (!product) return null;
-      
+
       // Transform product to ensure all fields from the updated schema exist
       return {
         ...product,
@@ -113,16 +144,28 @@ export class ProductService {
       if (updateData.images && !Array.isArray(updateData.images)) {
         updateData.images = [];
       }
-      
+
       if (updateData.tags && !Array.isArray(updateData.tags)) {
         updateData.tags = [];
+      }
+
+      // If slug is provided or name changes, regenerate slug
+      if (
+        (data.slug && data.slug.trim().length > 0) ||
+        (data.name && data.name.trim().length > 0)
+      ) {
+        const base =
+          data.slug && data.slug.trim().length > 0
+            ? this.generateSlugFromName(data.slug)
+            : this.generateSlugFromName(data.name as string);
+        updateData.slug = await this.ensureUniqueSlug(base);
       }
 
       const product = await this.prisma.product.update({
         where: { id },
         data: updateData,
       });
-      
+
       // Transform product to ensure all fields from the updated schema exist
       return {
         ...product,
