@@ -6,6 +6,9 @@ import {
   IsBoolean,
   IsArray,
   IsEnum,
+  IsUrl,
+  Min,
+  Max,
 } from 'class-validator';
 
 export class CreateProductDto {
@@ -13,51 +16,69 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @IsNotEmpty()
-  @IsString()
-  slug: string;
-
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   description: string;
 
   @IsNotEmpty()
+  @IsString()
+  shortDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  detailedDescription?: string;
+
+  @IsNotEmpty()
   @IsNumber()
+  @Min(0)
   price: number;
 
   @IsOptional()
   @IsNumber()
-  salePrice?: number;
+  @Min(0)
+  originalPrice?: number;
 
   @IsOptional()
-  @IsString()
-  imageUrl?: string;
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  discount?: number;
 
   @IsOptional()
-  @IsString()
-  coverImage?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  images?: string[];
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
+  @IsBoolean()
+  inStock?: boolean;
 
   @IsNotEmpty()
   @IsNumber()
-  stock: number;
+  @Min(0)
+  stock: number; // Total quantity available in warehouse
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lowStockThreshold?: number;
+
+  @IsOptional()
+  @IsNumber()
+  categoryId?: number;
 
   @IsOptional()
   @IsString()
-  @IsEnum(['draft', 'published'])
-  status?: string;
+  unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weight?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsUrl({}, { each: true })
+  images?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @IsOptional()
   @IsArray()
@@ -65,22 +86,32 @@ export class CreateProductDto {
   tags?: string[];
 
   @IsOptional()
-  @IsString()
-  sku?: string;
+  @IsBoolean()
+  featured?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  isFeatured?: boolean;
+  bestseller?: boolean;
+
+  @IsNotEmpty()
+  @IsString()
+  slug: string;
+
+  @IsOptional()
+  @IsString()
+  @IsEnum(['draft', 'published', 'archived'])
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
 
   @IsOptional()
   @IsString()
   brand?: string;
 
   @IsOptional()
-  @IsNumber()
-  discount?: number;
-
-  @IsOptional()
-  @IsNumber()
-  weight?: number;
+  @IsString()
+  @IsUrl()
+  coverImage?: string;
 }
