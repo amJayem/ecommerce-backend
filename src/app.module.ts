@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma/prisma.service';
 import { ProductModule } from './product/product.module';
 import { OrderModule } from './order/order.module';
+import { CategoryModule } from './category/category.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -13,6 +14,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ProductModule,
     AuthModule,
     OrderModule,
+    CategoryModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
       {
