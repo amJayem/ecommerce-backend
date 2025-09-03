@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -19,7 +24,7 @@ export class ProductService {
   private async ensureUniqueSlug(baseSlug: string): Promise<string> {
     let candidate = baseSlug || 'product';
     let suffix = 0;
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       const existing = await this.prisma.product.findFirst({
         where: { slug: candidate },
@@ -33,7 +38,25 @@ export class ProductService {
 
   async create(data: CreateProductDto) {
     try {
-      console.log('Creating product with data:', data);
+      // Check if slug already exists
+      const existingProduct = await this.prisma.product.findUnique({
+        where: { slug: data.slug },
+      });
+
+      if (existingProduct) {
+        throw new ConflictException('Product with this slug already exists');
+      }
+
+      // If categoryId is provided, verify it exists (will work after schema update)
+      // if (data.categoryId) {
+      //   const category = await this.prisma.category.findUnique({
+      //     where: { id: data.categoryId },
+      //   });
+
+      //   if (!category) {
+      //     throw new NotFoundException('Category not found');
+      //   }
+      // }
 
       // Ensure arrays are properly formatted
       const images = Array.isArray(data.images) ? data.images : [];
@@ -50,60 +73,112 @@ export class ProductService {
           name: data.name,
           slug: uniqueSlug,
           description: data.description,
+          shortDescription: data.shortDescription,
+          detailedDescription: data.detailedDescription,
           price: data.price,
-          salePrice: data.salePrice || null,
-          imageUrl: data.imageUrl || null,
-          coverImage: data.coverImage || null,
-          images: images,
-          category: data.category || null,
+          originalPrice: data.originalPrice,
+          discount: data.discount || 0,
+          inStock: data.inStock ?? true,
+          stock: data.stock || 0, // Use stock field directly
+          lowStockThreshold: data.lowStockThreshold || 5,
           categoryId: data.categoryId || null,
-          stock: data.stock,
-          status: data.status || 'draft',
+          unit: data.unit || 'piece',
+          weight: data.weight,
+          images: images,
+          isActive: data.isActive ?? true,
           tags: tags,
-          sku: data.sku || null,
-          isFeatured: data.isFeatured || false,
-          brand: data.brand || null,
-          discount: data.discount || null,
-          weight: data.weight || null,
+          featured: data.featured ?? false,
+          bestseller: data.bestseller ?? false,
+          status: data.status || 'draft',
+          sku: data.sku,
+          brand: data.brand,
+          coverImage: data.coverImage,
         },
       });
 
       return product;
     } catch (error) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
       console.error('Error creating product:', error);
-      throw error;
+      throw new Error('Failed to create product');
     }
   }
 
-  async findAll() {
+  async findAll(query?: {
+    categoryId?: number;
+    status?: string;
+    featured?: boolean;
+    inStock?: boolean;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
     try {
-      // Use Prisma's select to explicitly select fields and provide defaults for nullable fields
-      const products = await this.prisma.product.findMany({
-        orderBy: {
-          createdAt: 'desc',
-        },
-        // Don't use select as it might exclude fields we need
-      });
+      const {
+        categoryId,
+        status,
+        featured,
+        inStock,
+        search,
+        page = 1,
+        limit = 20,
+      } = query || {};
 
-      // Transform products to ensure all fields from the updated schema exist
-      return products.map((product) => ({
-        ...product,
-        slug: product.slug || '', // Provide empty string for null slugs
-        salePrice: product.salePrice || null,
-        coverImage: product.coverImage || null,
-        images: Array.isArray(product.images) ? product.images : [],
-        categoryId: product.categoryId || null,
-        status: product.status || 'draft',
-        tags: Array.isArray(product.tags) ? product.tags : [],
-        sku: product.sku || null,
-      }));
+      const where: any = {};
+
+      if (categoryId) {
+        where.categoryId = categoryId;
+      }
+
+      if (status) {
+        where.status = status;
+      }
+
+      if (featured !== undefined) {
+        where.featured = featured;
+      }
+
+      if (inStock !== undefined) {
+        where.stock = { gt: 0 };
+      }
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { tags: { hasSome: [search] } },
+        ];
+      }
+
+      const skip = (page - 1) * limit;
+
+      const [products, total] = await Promise.all([
+        this.prisma.product.findMany({
+          where,
+          orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
+          skip,
+          take: limit,
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      return {
+        products,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      };
     } catch (error) {
       console.error('Error fetching products:', error);
-      // Log more details about the error
-      if (error.code === 'P2032') {
-        console.error('Prisma error details:', error.meta);
-      }
-      throw error;
+      throw new Error('Failed to fetch products');
     }
   }
 
@@ -113,29 +188,63 @@ export class ProductService {
         where: { id },
       });
 
-      if (!product) return null;
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
 
-      // Transform product to ensure all fields from the updated schema exist
-      return {
-        ...product,
-        slug: product.slug || '',
-        salePrice: product.salePrice || null,
-        coverImage: product.coverImage || null,
-        images: Array.isArray(product.images) ? product.images : [],
-        categoryId: product.categoryId || null,
-        status: product.status || 'draft',
-        tags: Array.isArray(product.tags) ? product.tags : [],
-        sku: product.sku || null,
-      };
+      return product;
     } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       console.error(`Error fetching product with id ${id}:`, error);
-      throw error;
+      throw new Error('Failed to fetch product');
     }
   }
 
-  async update(id: number, data: Partial<CreateProductDto>) {
+  async findBySlug(slug: string) {
     try {
-      // Filter out undefined values to avoid overwriting with null
+      const product = await this.prisma.product.findUnique({
+        where: { slug },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      return product;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`Error fetching product with slug ${slug}:`, error);
+      throw new Error('Failed to fetch product');
+    }
+  }
+
+  async update(id: number, data: UpdateProductDto) {
+    try {
+      // Check if product exists
+      const existingProduct = await this.prisma.product.findUnique({
+        where: { id },
+      });
+
+      if (!existingProduct) {
+        throw new NotFoundException('Product not found');
+      }
+
+      // If slug is being updated, check for conflicts
+      if (data.slug && data.slug !== existingProduct.slug) {
+        const slugConflict = await this.prisma.product.findUnique({
+          where: { slug: data.slug },
+        });
+
+        if (slugConflict) {
+          throw new ConflictException('Product with this slug already exists');
+        }
+      }
+
+      // Filter out undefined values
       const updateData = Object.fromEntries(
         Object.entries(data).filter(([_, value]) => value !== undefined),
       );
@@ -149,16 +258,10 @@ export class ProductService {
         updateData.tags = [];
       }
 
-      // If slug is provided or name changes, regenerate slug
-      if (
-        (data.slug && data.slug.trim().length > 0) ||
-        (data.name && data.name.trim().length > 0)
-      ) {
-        const base =
-          data.slug && data.slug.trim().length > 0
-            ? this.generateSlugFromName(data.slug)
-            : this.generateSlugFromName(data.name as string);
-        updateData.slug = await this.ensureUniqueSlug(base);
+      // Map featured to isFeatured for now
+      if (updateData.featured !== undefined) {
+        updateData.isFeatured = updateData.featured;
+        delete updateData.featured;
       }
 
       const product = await this.prisma.product.update({
@@ -166,30 +269,112 @@ export class ProductService {
         data: updateData,
       });
 
-      // Transform product to ensure all fields from the updated schema exist
-      return {
-        ...product,
-        slug: product.slug || '',
-        salePrice: product.salePrice || null,
-        coverImage: product.coverImage || null,
-        images: Array.isArray(product.images) ? product.images : [],
-        categoryId: product.categoryId || null,
-        status: product.status || 'draft',
-        tags: Array.isArray(product.tags) ? product.tags : [],
-        sku: product.sku || null,
-      };
+      return product;
     } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
       console.error(`Error updating product with id ${id}:`, error);
-      throw error;
+      throw new Error('Failed to update product');
     }
   }
 
   async remove(id: number) {
     try {
-      return this.prisma.product.delete({ where: { id } });
+      // Check if product exists
+      const existingProduct = await this.prisma.product.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: { orderItems: true },
+          },
+        },
+      });
+
+      if (!existingProduct) {
+        throw new NotFoundException('Product not found');
+      }
+
+      // Check if product has orders
+      if (existingProduct._count.orderItems > 0) {
+        throw new ConflictException(
+          'Cannot delete product with existing orders',
+        );
+      }
+
+      await this.prisma.product.delete({ where: { id } });
+
+      return { message: 'Product deleted successfully' };
     } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
       console.error(`Error deleting product with id ${id}:`, error);
-      throw error;
+      throw new Error('Failed to delete product');
+    }
+  }
+
+  async getFeatured() {
+    try {
+      return this.prisma.product.findMany({
+        where: {
+          featured: true,
+          status: 'published',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      throw new Error('Failed to fetch featured products');
+    }
+  }
+
+  async getBestsellers() {
+    try {
+      return this.prisma.product.findMany({
+        where: {
+          status: 'published',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    } catch (error) {
+      console.error('Error fetching bestseller products:', error);
+      throw new Error('Failed to fetch bestseller products');
+    }
+  }
+
+  async updateStock(id: number, quantity: number) {
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      const newStockQuantity = product.stock + quantity;
+
+      return this.prisma.product.update({
+        where: { id },
+        data: {
+          stock: newStockQuantity,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`Error updating stock for product ${id}:`, error);
+      throw new Error('Failed to update product stock');
     }
   }
 }
