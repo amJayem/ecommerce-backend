@@ -19,51 +19,118 @@ model User {
   avatarUrl    String?
   isVerified   Boolean  @default(false)
   phoneNumber  String?
+  orders       Order[]
 
   @@index([refreshToken])
 }
 
+model Category {
+  id              Int       @id @default(autoincrement())
+  name            String
+  slug            String    @unique
+  description     String
+  icon            String?
+  image           String?
+  parentId        Int?
+  parent          Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  products        Product[]
+
+  @@index([parentId])
+}
+
 model Product {
-  id          Int         @id @default(autoincrement())
-  name        String
-  price       Float
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  description String
-  brand       String?
-  category    String?
-  discount    Float?
-  imageUrl    String?
-  isFeatured  Boolean     @default(false)
-  stock       Int         @default(0)
-  weight      Float?
-  categoryId  String?
-  coverImage  String?
-  images      String[]    @default([])
-  salePrice   Float?
-  sku         String?
-  slug        String      @unique @default("")
-  status      String      @default("draft")
-  tags        String[]    @default([])
-  orderItems  OrderItem[]
+  id                    Int         @id @default(autoincrement())
+  name                  String
+  description           String
+  shortDescription      String?
+  detailedDescription   String?
+  price                 Float
+  originalPrice         Float?
+  discount              Float?       @default(0)
+  inStock               Boolean     @default(true)
+  stock                 Int         @default(0) // MAIN FIELD: Total quantity available in warehouse
+  lowStockThreshold     Int         @default(5)
+  categoryId            Int?
+  category              Category?   @relation(fields: [categoryId], references: [id])
+  unit                  String      @default("piece")
+  weight                Float?
+  images                String[]    @default([])
+  isActive              Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  tags                  String[]    @default([])
+  featured              Boolean     @default(false)
+  bestseller            Boolean     @default(false)
+  slug                  String      @unique
+  status                String      @default("draft")
+  sku                   String?
+  brand                 String?
+  coverImage            String?
+  orderItems            OrderItem[]
+
+  @@index([categoryId])
+  @@index([slug])
+  @@index([status])
 }
 
 model Order {
-  id        Int         @id @default(autoincrement())
-  userId    Int?
-  status    String      @default("pending")
-  total     Float
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  items     OrderItem[]
+  id                   Int           @id @default(autoincrement())
+  userId               Int?          // Optional for anonymous users
+  user                 User?         @relation(fields: [userId], references: [id])
+  status               OrderStatus   @default(PENDING)
+  totalAmount          Float
+  subtotal             Float
+  tax                  Float         @default(0)
+  shipping             Float         @default(0)
+  discount             Float         @default(0)
+  paymentStatus        PaymentStatus @default(PENDING)
+  paymentMethod        String?
+  shippingAddress      String
+  billingAddress       String
+  deliveryInstructions String?
+  estimatedDelivery    DateTime?
+  actualDelivery       DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  items                OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
 }
 
 model OrderItem {
   id        Int     @id @default(autoincrement())
   orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId Int
+  product   Product @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  total     Float
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
