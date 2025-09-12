@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/decorator/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
 
-@Controller('api/categories')
+@Controller('categories')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 

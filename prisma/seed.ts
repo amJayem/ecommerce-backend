@@ -2,6 +2,89 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  // First, create categories
+  console.log('Creating categories...');
+  await prisma.category.createMany({
+    data: [
+      {
+        name: 'Staples',
+        slug: 'staples',
+        description:
+          'Essential food items including rice, lentils, grains, and basic cooking ingredients',
+        icon: '🌾',
+        image:
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        isActive: true,
+        sortOrder: 1,
+        metaTitle: 'Staples - Essential Food Items',
+        metaDescription:
+          'Shop for rice, lentils, grains and essential cooking ingredients',
+      },
+      {
+        name: 'Vegetables',
+        slug: 'vegetables',
+        description: 'Fresh vegetables and produce for healthy cooking',
+        icon: '🥬',
+        image:
+          'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400',
+        isActive: true,
+        sortOrder: 2,
+        metaTitle: 'Fresh Vegetables',
+        metaDescription: 'Fresh vegetables and produce for healthy meals',
+      },
+      {
+        name: 'Spices & Seasonings',
+        slug: 'spices-seasonings',
+        description:
+          'Aromatic spices, herbs, and seasonings to enhance your cooking',
+        icon: '🌶️',
+        image:
+          'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+        isActive: true,
+        sortOrder: 3,
+        metaTitle: 'Spices & Seasonings',
+        metaDescription: 'Premium spices and seasonings for authentic flavors',
+      },
+      {
+        name: 'Cooking Oils',
+        slug: 'cooking-oils',
+        description: 'High-quality cooking oils for various culinary needs',
+        icon: '🫒',
+        image:
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400',
+        isActive: true,
+        sortOrder: 4,
+        metaTitle: 'Cooking Oils',
+        metaDescription: 'Premium cooking oils for healthy and delicious meals',
+      },
+      {
+        name: 'Dairy & Eggs',
+        slug: 'dairy-eggs',
+        description: 'Fresh dairy products and eggs',
+        icon: '🥛',
+        image:
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+        isActive: true,
+        sortOrder: 5,
+        metaTitle: 'Dairy & Eggs',
+        metaDescription: 'Fresh dairy products and farm-fresh eggs',
+      },
+      {
+        name: 'Fruits',
+        slug: 'fruits',
+        description: 'Fresh seasonal fruits and tropical produce',
+        icon: '🍎',
+        image:
+          'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400',
+        isActive: true,
+        sortOrder: 6,
+        metaTitle: 'Fresh Fruits',
+        metaDescription: 'Fresh seasonal fruits and tropical produce',
+      },
+    ],
+  });
+
+  console.log('Creating products...');
   await prisma.product.createMany({
     data: [
       // ——————————— MASOOR DAL (uses Red_Lentils image) ———————————
@@ -232,6 +315,282 @@ async function main() {
         slug: 'baby-potatoes-1kg',
         status: 'active',
         tags: ['potatoes', 'baby-potatoes', 'fresh', 'roasting'],
+      },
+
+      // ——————————— ADDITIONAL VEGETABLES ———————————
+      {
+        name: 'Fresh Onions – 1kg',
+        price: 1.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Fresh, firm onions perfect for cooking. Essential ingredient for curries, soups, and everyday cooking. Long shelf life and versatile use.',
+        brand: 'GreenField Farms',
+        categoryId: 2,
+        coverImage:
+          'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1518977956812-cd3dbadaaf31?w=400',
+        ],
+        featured: false,
+        stock: 150,
+        weight: 1.0,
+        sku: 'VEG-003',
+        slug: 'fresh-onions-1kg',
+        status: 'active',
+        tags: ['onions', 'vegetables', 'fresh', 'cooking'],
+      },
+      {
+        name: 'Fresh Tomatoes – 1kg',
+        price: 2.49,
+        originalPrice: 2.99,
+        discount: 16.7,
+        description:
+          'Juicy, ripe tomatoes perfect for salads, cooking, and sauces. Rich in vitamins and antioxidants.',
+        brand: 'GreenField Farms',
+        categoryId: 2,
+        coverImage:
+          'https://images.unsplash.com/photo-1546470427-227ae4b8b7a0?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1546470427-227ae4b8b7a0?w=400',
+        ],
+        featured: true,
+        stock: 100,
+        weight: 1.0,
+        sku: 'VEG-004',
+        slug: 'fresh-tomatoes-1kg',
+        status: 'active',
+        tags: ['tomatoes', 'vegetables', 'fresh', 'vitamins'],
+      },
+
+      // ——————————— ADDITIONAL SPICES ———————————
+      {
+        name: 'Cumin Seeds – 100g',
+        price: 1.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Aromatic cumin seeds with earthy, warm flavor. Essential for Indian, Middle Eastern, and Mexican cuisines.',
+        brand: 'SpiceWorld',
+        categoryId: 3,
+        coverImage:
+          'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+        ],
+        featured: false,
+        stock: 80,
+        weight: 0.1,
+        sku: 'SPICE-003',
+        slug: 'cumin-seeds-100g',
+        status: 'active',
+        tags: ['cumin', 'spices', 'seeds', 'aromatic'],
+      },
+      {
+        name: 'Coriander Powder – 200g',
+        price: 2.49,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Finely ground coriander powder with citrusy, slightly sweet flavor. Perfect for curries, marinades, and spice blends.',
+        brand: 'SpiceWorld',
+        categoryId: 3,
+        coverImage:
+          'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+        ],
+        featured: false,
+        stock: 90,
+        weight: 0.2,
+        sku: 'SPICE-004',
+        slug: 'coriander-powder-200g',
+        status: 'active',
+        tags: ['coriander', 'spices', 'powder', 'citrusy'],
+      },
+
+      // ——————————— ADDITIONAL OILS ———————————
+      {
+        name: 'Coconut Oil – 500ml',
+        price: 4.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Pure virgin coconut oil with natural aroma. Great for cooking, baking, and skincare.',
+        brand: 'PureNature',
+        categoryId: 4,
+        coverImage:
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400',
+        ],
+        featured: false,
+        stock: 70,
+        weight: 0.5,
+        sku: 'OIL-003',
+        slug: 'coconut-oil-500ml',
+        status: 'active',
+        tags: ['coconut-oil', 'virgin', 'cooking', 'skincare'],
+      },
+      {
+        name: 'Sunflower Oil – 1L',
+        price: 3.99,
+        originalPrice: 4.49,
+        discount: 11.1,
+        description:
+          'Light, neutral-tasting sunflower oil perfect for frying and baking. High in vitamin E.',
+        brand: 'PureNature',
+        categoryId: 4,
+        coverImage:
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400',
+        ],
+        featured: true,
+        stock: 85,
+        weight: 1.0,
+        sku: 'OIL-004',
+        slug: 'sunflower-oil-1l',
+        status: 'active',
+        tags: ['sunflower-oil', 'light', 'vitamin-e', 'frying'],
+      },
+
+      // ——————————— DAIRY & EGGS ———————————
+      {
+        name: 'Fresh Milk – 1L',
+        price: 1.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Fresh, whole milk from local farms. Rich in calcium and protein.',
+        brand: 'FarmFresh',
+        categoryId: 5,
+        coverImage:
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+        ],
+        featured: false,
+        stock: 60,
+        weight: 1.0,
+        sku: 'DAIRY-001',
+        slug: 'fresh-milk-1l',
+        status: 'active',
+        tags: ['milk', 'dairy', 'fresh', 'calcium'],
+      },
+      {
+        name: 'Free Range Eggs – 12 pieces',
+        price: 3.49,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Farm-fresh free range eggs with rich, golden yolks. Perfect for breakfast and baking.',
+        brand: 'FarmFresh',
+        categoryId: 5,
+        coverImage:
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+        ],
+        featured: true,
+        stock: 45,
+        weight: 0.6,
+        sku: 'DAIRY-002',
+        slug: 'free-range-eggs-12',
+        status: 'active',
+        tags: ['eggs', 'free-range', 'fresh', 'protein'],
+      },
+
+      // ——————————— FRUITS ———————————
+      {
+        name: 'Fresh Bananas – 1kg',
+        price: 1.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Sweet, ripe bananas perfect for snacking or baking. Rich in potassium and fiber.',
+        brand: 'TropicalFruits',
+        categoryId: 6,
+        coverImage:
+          'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400',
+        ],
+        featured: false,
+        stock: 75,
+        weight: 1.0,
+        sku: 'FRUIT-001',
+        slug: 'fresh-bananas-1kg',
+        status: 'active',
+        tags: ['bananas', 'fruits', 'potassium', 'fiber'],
+      },
+      {
+        name: 'Fresh Apples – 1kg',
+        price: 2.99,
+        originalPrice: 3.49,
+        discount: 14.3,
+        description:
+          'Crisp, sweet apples perfect for snacking or cooking. Rich in antioxidants.',
+        brand: 'TropicalFruits',
+        categoryId: 6,
+        coverImage:
+          'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400',
+        ],
+        featured: true,
+        stock: 65,
+        weight: 1.0,
+        sku: 'FRUIT-002',
+        slug: 'fresh-apples-1kg',
+        status: 'active',
+        tags: ['apples', 'fruits', 'antioxidants', 'crisp'],
+      },
+
+      // ——————————— ADDITIONAL STAPLES ———————————
+      {
+        name: 'Whole Wheat Flour – 2kg',
+        price: 4.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'Premium whole wheat flour perfect for baking bread, rotis, and healthy baked goods.',
+        brand: 'GoldenGrain',
+        categoryId: 1,
+        coverImage:
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        ],
+        featured: false,
+        stock: 50,
+        weight: 2.0,
+        sku: 'STAPLE-001',
+        slug: 'whole-wheat-flour-2kg',
+        status: 'active',
+        tags: ['flour', 'wheat', 'baking', 'healthy'],
+      },
+      {
+        name: 'Chickpeas (Chana) – 500g',
+        price: 2.99,
+        originalPrice: null,
+        discount: 0,
+        description:
+          'High-protein chickpeas perfect for curries, salads, and hummus. Rich in fiber and plant protein.',
+        brand: 'FreshHarvest',
+        categoryId: 1,
+        coverImage:
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        images: [
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        ],
+        featured: true,
+        stock: 85,
+        weight: 0.5,
+        sku: 'STAPLE-002',
+        slug: 'chickpeas-chana-500g',
+        status: 'active',
+        tags: ['chickpeas', 'protein', 'fiber', 'vegan'],
       },
     ],
   });

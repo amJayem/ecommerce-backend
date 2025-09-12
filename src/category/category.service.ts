@@ -72,6 +72,7 @@ export class CategoryService {
 
       return categories;
     } catch (error) {
+      console.error(error);
       throw new Error('Failed to fetch categories');
     }
   }
@@ -289,6 +290,7 @@ export class CategoryService {
 
       return categories;
     } catch (error) {
+      console.error(error);
       throw new Error('Failed to fetch category hierarchy');
     }
   }
