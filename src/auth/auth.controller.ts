@@ -12,12 +12,19 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 export type TokenPair = {
   access_token: string;
   refresh_token: string;
 };
 
+@ApiTags('Auth')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {
@@ -27,6 +34,9 @@ export class AuthController {
    * Register a new user and return access + refresh tokens
    */
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User registered' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -36,6 +46,9 @@ export class AuthController {
    */
 
   @Post('login')
+  @ApiOperation({ summary: 'Login user and set tokens in cookies' })
+  @ApiResponse({ status: 200, description: 'Logged in successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response, // allow Nest to manage response object
@@ -74,6 +87,9 @@ export class AuthController {
    * Get new access + refresh tokens using a valid refresh token
    */
   @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access and refresh tokens' })
+  @ApiResponse({ status: 200, description: 'Tokens refreshed' })
+  @ApiResponse({ status: 403, description: 'Refresh token missing/invalid' })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -113,6 +129,9 @@ export class AuthController {
 
   // NestJS AuthController
   @Post('logout')
+  @ApiOperation({ summary: 'Logout user and clear cookies' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiBearerAuth('access-token')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     try {
       // Get user from request (if authenticated)
