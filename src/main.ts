@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
-const port = process.env.PORT ?? 3333;
+const port = process.env.PORT ?? 3456;
 const prefix = `/api/v1`;
 
 async function bootstrap() {
