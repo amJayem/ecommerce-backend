@@ -50,8 +50,15 @@ export class CategoryController {
 
   @Get('slug/:slug')
   @HttpCode(HttpStatus.OK)
-  findBySlug(@Param('slug') slug: string) {
+  async findBySlug(@Param('slug') slug: string) {
     return this.categoryService.findBySlug(slug);
+  }
+
+  @Get(':id/products')
+  @HttpCode(HttpStatus.OK)
+  async getCategoryProducts(@Param('id', ParseIntPipe) id: number) {
+    console.log('Category ID:', id);
+    return this.categoryService.getCategoryProducts(id);
   }
 
   @Patch(':id')

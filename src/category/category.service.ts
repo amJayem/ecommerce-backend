@@ -294,4 +294,52 @@ export class CategoryService {
       throw new Error('Failed to fetch category hierarchy');
     }
   }
+
+  async getCategoryProducts(id: number) {
+    try {
+      // First verify the category exists
+      const category = await this.prisma.category.findUnique({
+        where: { id },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      // Get products for this category
+      const products = await this.prisma.product.findMany({
+        where: {
+          categoryId: id,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          price: true,
+          originalPrice: true,
+          discount: true,
+          coverImage: true,
+          stock: true,
+          featured: true,
+          bestseller: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: [
+          { featured: 'desc' },
+          { bestseller: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      });
+
+      return products;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error('Failed to fetch category products');
+    }
+  }
 }
