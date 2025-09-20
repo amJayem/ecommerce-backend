@@ -132,7 +132,17 @@ export class ProductService {
       // Convert categoryId to number if it exists
       const categoryId = rawCategoryId ? Number(rawCategoryId) : undefined;
 
-      const where: any = {};
+      const where: {
+        categoryId?: number;
+        status?: string;
+        featured?: boolean;
+        stock?: { gt: number };
+        OR?: Array<{
+          name?: { contains: string; mode: 'insensitive' };
+          description?: { contains: string; mode: 'insensitive' };
+          tags?: { hasSome: string[] };
+        }>;
+      } = {};
 
       if (categoryId) {
         where.categoryId = categoryId;
@@ -248,8 +258,8 @@ export class ProductService {
       }
 
       // Filter out undefined values
-      const updateData = Object.fromEntries(
-        Object.entries(data).filter(([_, value]) => value !== undefined),
+      const updateData: Record<string, unknown> = Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined),
       );
 
       // Ensure arrays are properly formatted
