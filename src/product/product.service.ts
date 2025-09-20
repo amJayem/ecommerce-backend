@@ -120,7 +120,7 @@ export class ProductService {
   }) {
     try {
       const {
-        categoryId,
+        categoryId: rawCategoryId,
         status,
         featured,
         inStock,
@@ -128,6 +128,9 @@ export class ProductService {
         page = 1,
         limit = 20,
       } = query || {};
+
+      // Convert categoryId to number if it exists
+      const categoryId = rawCategoryId ? Number(rawCategoryId) : undefined;
 
       const where: any = {};
 
