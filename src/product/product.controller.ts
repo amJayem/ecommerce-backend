@@ -21,6 +21,7 @@ import { Roles } from '../auth/decorator/roles.decorator';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -46,6 +47,46 @@ export class ProductController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'List products with filters and pagination' })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    description: 'Filter by category ID',
+  })
+  @ApiQuery({
+    name: 'categorySlug',
+    required: false,
+    description: 'Filter by category slug',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by product status',
+  })
+  @ApiQuery({
+    name: 'featured',
+    required: false,
+    description: 'Filter by featured products',
+  })
+  @ApiQuery({
+    name: 'inStock',
+    required: false,
+    description: 'Filter by in-stock products',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search in product name, description, or tags',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of products per page',
+  })
   @ApiResponse({ status: 200, description: 'List of products returned' })
   findAll(@Query() query: any) {
     return this.productService.findAll(query);
@@ -74,6 +115,18 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productService.findOne(id);
+  }
+
+  @Get('category/:slug')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get products by category slug' })
+  @ApiResponse({
+    status: 200,
+    description: 'Products for the category returned',
+  })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  async getProductsByCategorySlug(@Param('slug') slug: string) {
+    return this.productService.getProductsByCategorySlug(slug);
   }
 
   @Get('slug/:slug')

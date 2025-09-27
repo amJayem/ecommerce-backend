@@ -111,6 +111,7 @@ export class ProductService {
 
   async findAll(query?: {
     categoryId?: number;
+    categorySlug?: string;
     status?: string;
     featured?: boolean;
     inStock?: boolean;
@@ -121,6 +122,7 @@ export class ProductService {
     try {
       const {
         categoryId: rawCategoryId,
+        categorySlug,
         status,
         featured,
         inStock,
@@ -131,6 +133,29 @@ export class ProductService {
 
       // Convert categoryId to number if it exists
       const categoryId = rawCategoryId ? Number(rawCategoryId) : undefined;
+
+      // If categorySlug is provided, find the category ID
+      let finalCategoryId = categoryId;
+      if (categorySlug && !categoryId) {
+        const category = await this.prisma.category.findUnique({
+          where: { slug: categorySlug },
+          select: { id: true },
+        });
+        if (category) {
+          finalCategoryId = category.id;
+        } else {
+          // If category slug not found, return empty results
+          return {
+            products: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              pages: 0,
+            },
+          };
+        }
+      }
 
       const where: {
         categoryId?: number;
@@ -144,8 +169,8 @@ export class ProductService {
         }>;
       } = {};
 
-      if (categoryId) {
-        where.categoryId = categoryId;
+      if (finalCategoryId) {
+        where.categoryId = finalCategoryId;
       }
 
       if (status) {
@@ -199,6 +224,16 @@ export class ProductService {
     try {
       const product = await this.prisma.product.findUnique({
         where: { id },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+            },
+          },
+        },
       });
 
       if (!product) {
@@ -215,10 +250,72 @@ export class ProductService {
     }
   }
 
+  async getProductsByCategorySlug(slug: string) {
+    try {
+      // First, find the category by slug
+      const category = await this.prisma.category.findUnique({
+        where: { slug },
+        select: { id: true, name: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      // Get products for this category
+      const products = await this.prisma.product.findMany({
+        where: {
+          categoryId: category.id,
+          isActive: true,
+        },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+            },
+          },
+        },
+        orderBy: [
+          { featured: 'desc' },
+          { bestseller: 'desc' },
+          { createdAt: 'desc' },
+        ],
+      });
+
+      return {
+        category: {
+          id: category.id,
+          name: category.name,
+          slug: slug,
+        },
+        products,
+        total: products.length,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new Error('Failed to fetch products by category slug');
+    }
+  }
+
   async findBySlug(slug: string) {
     try {
       const product = await this.prisma.product.findUnique({
         where: { slug },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+            },
+          },
+        },
       });
 
       if (!product) {
