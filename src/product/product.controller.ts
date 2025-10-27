@@ -15,6 +15,10 @@ import {
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import {
+  SearchProductDto,
+  SearchProductResponseDto,
+} from './dto/search-product.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/decorator/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
@@ -106,6 +110,62 @@ export class ProductController {
   @ApiResponse({ status: 200, description: 'Bestseller products returned' })
   getBestsellers() {
     return this.productService.getBestsellers();
+  }
+
+  @Get('search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Search and filter products' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Search term for product name, description, or keywords',
+    example: 'fresh fruits',
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    description: 'Category ID to filter products',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    description: 'Minimum price filter',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    description: 'Maximum price filter',
+    example: 100,
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    description: 'Sort option for products',
+    enum: ['price_asc', 'price_desc', 'newest', 'oldest'],
+    example: 'price_asc',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number for pagination',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of products per page',
+    example: 12,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Search results returned successfully',
+    type: SearchProductResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  search(@Query() searchDto: SearchProductDto) {
+    return this.productService.search(searchDto);
   }
 
   @Get(':id')
