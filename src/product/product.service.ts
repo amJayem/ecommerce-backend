@@ -12,6 +12,51 @@ import { SearchProductDto, SortOption } from './dto/search-product.dto';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
+  private async generateProductId(): Promise<number> {
+    // Get current date in YYYYMMDD format (8 digits)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const datePrefix = `${year}${month}${day}`; // "20251029"
+    const datePrefixInt = parseInt(datePrefix, 10);
+
+    // Find all products created today (IDs starting with today's date)
+    // Query products with ID >= today's minimum possible ID
+    const todayMinId = datePrefixInt * 10; // 202510290
+    const allProducts = await this.prisma.product.findMany({
+      where: {
+        id: {
+          gte: todayMinId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // Filter products that start with today's date prefix and find max sequence
+    let maxSequence = 0;
+    for (const product of allProducts) {
+      const idStr = String(product.id);
+      if (idStr.startsWith(datePrefix)) {
+        // Extract sequence part (everything after the 8-digit date prefix)
+        const sequenceStr = idStr.slice(datePrefix.length);
+        const sequence = parseInt(sequenceStr, 10);
+        if (!isNaN(sequence) && sequence > maxSequence) {
+          maxSequence = sequence;
+        }
+      }
+    }
+
+    // Generate next ID: datePrefix + (maxSequence + 1)
+    // Example: "20251029" + "1" = "202510291"
+    const nextSequence = maxSequence + 1;
+    const newId = parseInt(`${datePrefix}${nextSequence}`, 10);
+
+    return newId;
+  }
+
   private generateSlugFromName(name: string): string {
     return name
       .toString()
@@ -69,8 +114,12 @@ export class ProductService {
           : this.generateSlugFromName(data.name);
       const uniqueSlug = await this.ensureUniqueSlug(baseSlug);
 
+      // Generate custom product ID based on date + sequence
+      const productId = await this.generateProductId();
+
       const product = await this.prisma.product.create({
         data: {
+          id: productId,
           name: data.name,
           slug: uniqueSlug,
           description: data.description,
