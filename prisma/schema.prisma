@@ -81,7 +81,7 @@ model Product {
 }
 
 model Order {
-  id                   Int           @id @default(autoincrement())
+  id                   Int           @id
   userId               Int?          // Optional for anonymous users
   user                 User?         @relation(fields: [userId], references: [id])
   status               OrderStatus   @default(PENDING)

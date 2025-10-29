@@ -15,6 +15,35 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 export class OrderService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async generateOrderId(): Promise<number> {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `${yyyy}${mm}${dd}`; // yyyyMMdd
+    const prefixInt = parseInt(prefix, 10);
+
+    // Find existing orders today and compute next sequence
+    const minTodayId = prefixInt * 10; // e.g., 202510290
+    const existing = await this.prisma.order.findMany({
+      where: { id: { gte: minTodayId } },
+      select: { id: true },
+    });
+
+    let maxSeq = 0;
+    for (const o of existing) {
+      const idStr = String(o.id);
+      if (idStr.startsWith(prefix)) {
+        const seqStr = idStr.slice(prefix.length);
+        const seq = parseInt(seqStr, 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+      }
+    }
+
+    const nextSeq = maxSeq + 1;
+    return parseInt(`${prefix}${nextSeq}`, 10);
+  }
+
   // // Create a new order (public)
   // async createOrder(data: CreateOrderDto): Promise<any> {
   //   // Use a transaction to ensure atomicity
@@ -73,9 +102,11 @@ export class OrderService {
 
       // Use a transaction to ensure atomicity
       return this.prisma.$transaction(async (tx) => {
+        const orderId = await this.generateOrderId();
         // Create the order - userId can be null for anonymous users
         const order = await tx.order.create({
           data: {
+            id: orderId,
             userId: data.userId || null, // Allow null for anonymous users
             status: data.status || OrderStatus.PENDING,
             totalAmount: data.totalAmount || 0,
