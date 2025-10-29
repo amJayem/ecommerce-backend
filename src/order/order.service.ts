@@ -4,6 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import {
   CreateOrderDto,
   OrderStatus,
@@ -15,6 +16,9 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 export class OrderService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Generates an order identifier in the form yyyyMMdd{N}
+  // Example: 202510291 for the first order on 2025-10-29
+  // Strategy: read today's orders by ID prefix and append next sequence.
   private async generateOrderId(): Promise<number> {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -42,6 +46,16 @@ export class OrderService {
 
     const nextSeq = maxSeq + 1;
     return parseInt(`${prefix}${nextSeq}`, 10);
+  }
+
+  // Runtime type-narrowing for OrderStatus to keep update payloads type-safe
+  private isValidOrderStatus(value: unknown): value is OrderStatus {
+    return Object.values(OrderStatus).includes(value as OrderStatus);
+  }
+
+  // Runtime type-narrowing for PaymentStatus to keep update payloads type-safe
+  private isValidPaymentStatus(value: unknown): value is PaymentStatus {
+    return Object.values(PaymentStatus).includes(value as PaymentStatus);
   }
 
   // // Create a new order (public)
@@ -100,10 +114,11 @@ export class OrderService {
         }
       }
 
-      // Use a transaction to ensure atomicity
+      // Use a transaction to ensure atomicity across order creation and stock updates
       return this.prisma.$transaction(async (tx) => {
         const orderId = await this.generateOrderId();
         // Create the order - userId can be null for anonymous users
+        // Note: paymentMethod is free-form; COD is supported by pairing with PENDING paymentStatus
         const order = await tx.order.create({
           data: {
             id: orderId,
@@ -156,7 +171,8 @@ export class OrderService {
           },
         });
 
-        // Update product stock
+        // Update product stock for each item in the order
+        // This is a simple decrement; consider reservation/compensation if adding async payment capture
         for (const item of data.items) {
           await tx.product.update({
             where: { id: item.productId },
@@ -198,7 +214,8 @@ export class OrderService {
         limit = 20,
       } = query || {};
 
-      const where: any = {};
+      // Typed where clause to avoid unsafe any usage in filters
+      const where: Prisma.OrderWhereInput = {};
 
       if (userId) {
         where.userId = userId;
@@ -314,7 +331,7 @@ export class OrderService {
         throw new NotFoundException('Order not found');
       }
 
-      // If status is being updated to DELIVERED, set actualDelivery
+      // If status is being updated to DELIVERED, set actualDelivery once
       if (
         updateOrderDto.status === OrderStatus.DELIVERED &&
         !existingOrder.actualDelivery
@@ -322,12 +339,53 @@ export class OrderService {
         updateOrderDto.actualDelivery = new Date();
       }
 
-      // Create update data object excluding fields that shouldn't be directly updated
-      const { userId, items, ...updateData } = updateOrderDto;
+      // Build update data explicitly (avoid unsafe any); only copy defined fields
+      const updatedData: Prisma.OrderUpdateInput = {};
+      if (this.isValidOrderStatus(updateOrderDto.status)) {
+        updatedData.status = updateOrderDto.status;
+      }
+      if (updateOrderDto.totalAmount !== undefined) {
+        updatedData.totalAmount = updateOrderDto.totalAmount;
+      }
+      if (updateOrderDto.subtotal !== undefined) {
+        updatedData.subtotal = updateOrderDto.subtotal;
+      }
+      if (updateOrderDto.tax !== undefined) {
+        updatedData.tax = updateOrderDto.tax;
+      }
+      if (updateOrderDto.shipping !== undefined) {
+        updatedData.shipping = updateOrderDto.shipping;
+      }
+      if (updateOrderDto.discount !== undefined) {
+        updatedData.discount = updateOrderDto.discount;
+      }
+      if (this.isValidPaymentStatus(updateOrderDto.paymentStatus)) {
+        updatedData.paymentStatus = updateOrderDto.paymentStatus;
+      }
+      if (updateOrderDto.paymentMethod !== undefined) {
+        updatedData.paymentMethod = updateOrderDto.paymentMethod;
+      }
+      if (updateOrderDto.shippingAddress !== undefined) {
+        updatedData.shippingAddress = updateOrderDto.shippingAddress;
+      }
+      if (updateOrderDto.billingAddress !== undefined) {
+        updatedData.billingAddress = updateOrderDto.billingAddress;
+      }
+      if (updateOrderDto.deliveryInstructions !== undefined) {
+        updatedData.deliveryInstructions = updateOrderDto.deliveryInstructions;
+      }
+      if (updateOrderDto.estimatedDelivery !== undefined) {
+        updatedData.estimatedDelivery = updateOrderDto.estimatedDelivery
+          ? new Date(updateOrderDto.estimatedDelivery)
+          : null;
+      }
+      if (updateOrderDto.actualDelivery !== undefined) {
+        updatedData.actualDelivery = updateOrderDto.actualDelivery;
+      }
 
       const updatedOrder = await this.prisma.order.update({
         where: { id },
-        data: updateData,
+        data: updatedData,
         include: {
           user: {
             select: {
@@ -375,12 +433,12 @@ export class OrderService {
         throw new NotFoundException('Order not found');
       }
 
-      // Check if order can be cancelled (only pending orders)
+      // Business rule: only pending orders can be cancelled
       if (existingOrder.status !== OrderStatus.PENDING) {
         throw new ConflictException('Only pending orders can be cancelled');
       }
 
-      // Use transaction to restore product stock and delete order
+      // Restore stock and delete the order atomically
       return this.prisma.$transaction(async (tx) => {
         // Restore product stock
         for (const item of existingOrder.items) {
@@ -424,7 +482,8 @@ export class OrderService {
     try {
       const { status, page = 1, limit = 20 } = query || {};
 
-      const where: any = { userId };
+      // Scope to the current user and apply optional status filter
+      const where: Prisma.OrderWhereInput = { userId };
 
       if (status) {
         where.status = status;
@@ -481,10 +540,9 @@ export class OrderService {
         throw new NotFoundException('Order not found');
       }
 
-      const updateData: any = { status };
-
-      // If status is being updated to DELIVERED, set actualDelivery
-      if (status === OrderStatus.DELIVERED && !order.actualDelivery) {
+      // Set status and, if delivered, stamp delivery timestamp
+      const updateData: Prisma.OrderUpdateInput = { status };
+      if (status === OrderStatus.DELIVERED) {
         updateData.actualDelivery = new Date();
       }
 
