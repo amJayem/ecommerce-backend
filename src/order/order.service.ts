@@ -114,26 +114,34 @@ export class OrderService {
         }
       }
 
+      // Pre-generate the order id outside the transaction to avoid nesting client calls
+      const orderId = await this.generateOrderId();
+
       // Use a transaction to ensure atomicity across order creation and stock updates
       return this.prisma.$transaction(async (tx) => {
-        const orderId = await this.generateOrderId();
-        // Create the order - userId can be null for anonymous users
-        // Note: paymentMethod is free-form; COD is supported by pairing with PENDING paymentStatus
+        // Create the order
         const order = await tx.order.create({
           data: {
             id: orderId,
-            userId: data.userId || null, // Allow null for anonymous users
+            userId: data.userId || null,
             status: data.status || OrderStatus.PENDING,
             totalAmount: data.totalAmount || 0,
             subtotal: data.subtotal || 0,
             tax: data.tax || 0,
-            shipping: data.shipping || 0,
+            shippingCost: data.shippingCost || 0,
             discount: data.discount || 0,
             paymentStatus: data.paymentStatus || PaymentStatus.PENDING,
             paymentMethod: data.paymentMethod,
-            shippingAddress: data.shippingAddress || 'Not specified',
-            billingAddress: data.billingAddress || 'Not specified',
-            deliveryInstructions: data.deliveryInstructions,
+            shippingAddress:
+              data.shippingAddress !== undefined
+                ? (data.shippingAddress as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            billingAddress:
+              data.billingAddress !== undefined
+                ? (data.billingAddress as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            shippingAddressText: data.shippingAddressText,
+            deliveryNote: data.deliveryNote,
             estimatedDelivery: data.estimatedDelivery
               ? new Date(data.estimatedDelivery)
               : null,
@@ -353,8 +361,8 @@ export class OrderService {
       if (updateOrderDto.tax !== undefined) {
         updatedData.tax = updateOrderDto.tax;
       }
-      if (updateOrderDto.shipping !== undefined) {
-        updatedData.shipping = updateOrderDto.shipping;
+      if (updateOrderDto.shippingCost !== undefined) {
+        updatedData.shippingCost = updateOrderDto.shippingCost;
       }
       if (updateOrderDto.discount !== undefined) {
         updatedData.discount = updateOrderDto.discount;
@@ -366,13 +374,22 @@ export class OrderService {
         updatedData.paymentMethod = updateOrderDto.paymentMethod;
       }
       if (updateOrderDto.shippingAddress !== undefined) {
-        updatedData.shippingAddress = updateOrderDto.shippingAddress;
+        updatedData.shippingAddress =
+          updateOrderDto.shippingAddress !== undefined
+            ? (updateOrderDto.shippingAddress as Prisma.InputJsonValue)
+            : Prisma.JsonNull;
       }
       if (updateOrderDto.billingAddress !== undefined) {
-        updatedData.billingAddress = updateOrderDto.billingAddress;
+        updatedData.billingAddress =
+          updateOrderDto.billingAddress !== undefined
+            ? (updateOrderDto.billingAddress as Prisma.InputJsonValue)
+            : Prisma.JsonNull;
       }
-      if (updateOrderDto.deliveryInstructions !== undefined) {
-        updatedData.deliveryInstructions = updateOrderDto.deliveryInstructions;
+      if (updateOrderDto.shippingAddressText !== undefined) {
+        updatedData.shippingAddressText = updateOrderDto.shippingAddressText;
+      }
+      if (updateOrderDto.deliveryNote !== undefined) {
+        updatedData.deliveryNote = updateOrderDto.deliveryNote;
       }
       if (updateOrderDto.estimatedDelivery !== undefined) {
         updatedData.estimatedDelivery = updateOrderDto.estimatedDelivery

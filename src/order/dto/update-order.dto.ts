@@ -1,19 +1,63 @@
-// Update Order DTO - extends CreateOrderDto with all fields optional
-// This allows partial updates of order data
+import { OrderStatus, PaymentStatus } from './create-order.dto';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+// Update Order DTO - all fields optional for partial updates
 export class UpdateOrderDto {
+  @ApiPropertyOptional({ description: 'User ID' })
   userId?: number;
-  items?: any[];
-  status?: any;
+
+  @ApiPropertyOptional({
+    description: 'Updated items (not commonly used here)',
+  })
+  items?: Array<{ productId: number; quantity: number; price: number }>;
+
+  @ApiPropertyOptional({ description: 'Order status', enum: OrderStatus })
+  status?: OrderStatus;
+
+  @ApiPropertyOptional({ description: 'Total amount' })
   totalAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal' })
   subtotal?: number;
+
+  @ApiPropertyOptional({ description: 'Tax' })
   tax?: number;
-  shipping?: number;
+
+  @ApiPropertyOptional({ description: 'Shipping cost' })
+  shippingCost?: number;
+
+  @ApiPropertyOptional({ description: 'Discount' })
   discount?: number;
-  paymentStatus?: any;
+
+  @ApiPropertyOptional({ description: 'Payment status', enum: PaymentStatus })
+  paymentStatus?: PaymentStatus;
+
+  @ApiPropertyOptional({ description: 'Payment method' })
   paymentMethod?: string;
-  shippingAddress?: string;
-  billingAddress?: string;
-  deliveryInstructions?: string;
+
+  @ApiPropertyOptional({
+    description: 'Shipping address (JSON)',
+    type: 'object',
+    additionalProperties: true,
+  })
+  shippingAddress?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: 'Plain-text shipping address' })
+  shippingAddressText?: string;
+
+  @ApiPropertyOptional({
+    description: 'Billing address (JSON)',
+    type: 'object',
+    additionalProperties: true,
+  })
+  billingAddress?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: 'Delivery note' })
+  deliveryNote?: string;
+
+  @ApiPropertyOptional({ description: 'Estimated delivery (ISO date string)' })
   estimatedDelivery?: string;
+
+  @ApiPropertyOptional({ description: 'Actual delivery timestamp' })
   actualDelivery?: Date;
 }
