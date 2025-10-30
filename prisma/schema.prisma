@@ -88,13 +88,14 @@ model Order {
   totalAmount          Float
   subtotal             Float
   tax                  Float         @default(0)
-  shipping             Float         @default(0)
+  shippingCost         Float         @default(0) // renamed from shipping
   discount             Float         @default(0)
   paymentStatus        PaymentStatus @default(PENDING)
   paymentMethod        String?
-  shippingAddress      String
-  billingAddress       String
-  deliveryInstructions String?
+  shippingAddress      Json          // accepts structured shipping info
+  billingAddress       Json?
+  shippingAddressText  String?
+  deliveryNote         String?       // renamed from deliveryInstructions
   estimatedDelivery    DateTime?
   actualDelivery       DateTime?
   createdAt            DateTime      @default(now())
