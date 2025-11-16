@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   Post,
   Req,
   Res,
@@ -18,6 +19,11 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from './jwt/jwt-auth.guard';
+import {
+  CurrentUser,
+  JwtUserPayload,
+} from './decorator/current-user.decorator';
 
 export type TokenPair = {
   access_token: string;
@@ -164,6 +170,28 @@ export class AuthController {
 
     return { message: 'Logged out successfully' };
   }
+
+  /**
+   * Get current authenticated user profile
+   */
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getMe(@CurrentUser() user: JwtUserPayload) {
+    // Get full user data from database
+    const userData = await this.authService.getUserById(user.userId);
+
+    // Return in same format as login response
+    return {
+      user: userData,
+    };
+  }
 }
 
-// This controller handles user authentication, including registration, login, logout and token refresh.
+// This controller handles user authentication, including registration, login, logout, token refresh, and user profile.

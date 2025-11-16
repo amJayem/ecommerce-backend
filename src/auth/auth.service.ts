@@ -159,4 +159,22 @@ export class AuthService {
     // 5. Return to frontend
     return tokens;
   }
+
+  /**
+   * Get user by ID (for /me endpoint)
+   */
+  async getUserById(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new ForbiddenException('User not found');
+    }
+
+    // Remove sensitive fields (same as login response)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, refreshToken, ...userData } = user;
+    return userData;
+  }
 }
