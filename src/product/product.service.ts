@@ -160,29 +160,51 @@ export class ProductService {
   }
 
   async findAll(query?: {
-    categoryId?: number;
+    categoryId?: number | string;
     categorySlug?: string;
     status?: string;
-    featured?: boolean;
-    inStock?: boolean;
+    featured?: boolean | string;
+    inStock?: boolean | string;
     search?: string;
-    page?: number;
-    limit?: number;
+    page?: number | string;
+    limit?: number | string;
   }) {
     try {
       const {
         categoryId: rawCategoryId,
         categorySlug,
         status,
-        featured,
-        inStock,
+        featured: rawFeatured,
+        inStock: rawInStock,
         search,
-        page = 1,
-        limit = 20,
+        page: rawPage,
+        limit: rawLimit,
       } = query || {};
 
-      // Convert categoryId to number if it exists
+      // Convert query parameters to proper types
       const categoryId = rawCategoryId ? Number(rawCategoryId) : undefined;
+
+      // Validate and convert page (must be >= 1)
+      const parsedPage = rawPage ? Number(rawPage) : 1;
+      const page = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+
+      // Validate and convert limit (must be >= 1, max 100)
+      const parsedLimit = rawLimit ? Number(rawLimit) : 20;
+      const limit =
+        isNaN(parsedLimit) || parsedLimit < 1
+          ? 20
+          : parsedLimit > 100
+            ? 100
+            : parsedLimit;
+
+      const featured =
+        rawFeatured !== undefined
+          ? rawFeatured === true || rawFeatured === 'true'
+          : undefined;
+      const inStock =
+        rawInStock !== undefined
+          ? rawInStock === true || rawInStock === 'true'
+          : undefined;
 
       // If categorySlug is provided, find the category ID
       let finalCategoryId = categoryId;
@@ -266,7 +288,22 @@ export class ProductService {
       };
     } catch (error) {
       console.error('Error fetching products:', error);
-      throw new Error('Failed to fetch products');
+      // Re-throw NestJS exceptions as-is
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      // For other errors, provide more context
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error details:', {
+        message: errorMessage,
+        query,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new Error(`Failed to fetch products: ${errorMessage}`);
     }
   }
 
