@@ -273,6 +273,16 @@ export class ProductService {
           orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
           skip,
           take: limit,
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                icon: true,
+              },
+            },
+          },
         }),
         this.prisma.product.count({ where }),
       ]);
@@ -526,6 +536,16 @@ export class ProductService {
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+            },
+          },
+        },
       });
     } catch (error) {
       console.error('Error fetching featured products:', error);
@@ -541,6 +561,16 @@ export class ProductService {
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              icon: true,
+            },
+          },
+        },
       });
     } catch (error) {
       console.error('Error fetching bestseller products:', error);
