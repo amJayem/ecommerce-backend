@@ -30,6 +30,15 @@ export type TokenPair = {
   refresh_token: string;
 };
 
+/**
+ * Get SameSite cookie attribute based on environment
+ * - 'strict' in production (most secure, same domain only)
+ * - 'lax' in development (allows cross-origin for different ports)
+ */
+const getSameSite = (): 'strict' | 'lax' => {
+  return process.env.NODE_ENV === 'production' ? 'strict' : 'lax';
+};
+
 @ApiTags('Auth')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -66,7 +75,7 @@ export class AuthController {
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true, // prevent JS access
       secure: process.env.NODE_ENV === 'production', // secure on prod
-      sameSite: 'strict', // prevent CSRF
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000, // valid for 7 days
     });
@@ -75,7 +84,7 @@ export class AuthController {
     res.cookie('access_token', result.access_token, {
       httpOnly: true, // Must be true for secure auth
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
@@ -116,7 +125,7 @@ export class AuthController {
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -125,7 +134,7 @@ export class AuthController {
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
@@ -158,14 +167,14 @@ export class AuthController {
       expires: new Date(0),
       path: '/', // ensure consistent path
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
     });
     res.cookie('refresh_token', '', {
       httpOnly: true,
       expires: new Date(0),
       path: '/', // ensure consistent path
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
     });
 
     return { message: 'Logged out successfully' };
