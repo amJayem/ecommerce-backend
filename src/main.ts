@@ -64,7 +64,11 @@ async function bootstrap() {
   // Get CORS origins from environment variables
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin) =>
     origin.trim(),
-  ) || ['http://localhost:3000', 'http://localhost:3001'];
+  ) || [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://ecommerce-dashboard-r.vercel.app',
+  ];
 
   app.enableCors({
     origin: corsOrigins,
@@ -75,6 +79,19 @@ async function bootstrap() {
 
   await app.listen(port, () => {
     console.log(`✅ CORS origins: ${corsOrigins?.join(', ')}`);
+    console.log(
+      `✅ Cookie settings: SameSite=${
+        process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
+          ? 'none'
+          : process.env.NODE_ENV === 'production'
+            ? 'strict'
+            : 'lax'
+      }, 
+        Secure=${
+          process.env.NODE_ENV === 'production' ||
+          process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
+        }`,
+    );
     console.log(`✅ Server running on: http://localhost:${port}${prefix}`);
     if (enableSwagger) {
       console.log(`✅ Swagger docs: http://localhost:${port}/docs`);

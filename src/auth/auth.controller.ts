@@ -32,11 +32,31 @@ export type TokenPair = {
 
 /**
  * Get SameSite cookie attribute based on environment
+ * - 'none' if ALLOW_CROSS_DOMAIN_COOKIES=true (for different domains, requires HTTPS)
  * - 'strict' in production (most secure, same domain only)
  * - 'lax' in development (allows cross-origin for different ports)
  */
-const getSameSite = (): 'strict' | 'lax' => {
+const getSameSite = (): 'strict' | 'lax' | 'none' => {
+  // Check if cross-domain cookies are explicitly enabled
+  if (process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true') {
+    return 'none'; // Allows cross-domain cookies (requires secure: true)
+  }
   return process.env.NODE_ENV === 'production' ? 'strict' : 'lax';
+};
+
+/**
+ * Get secure flag for cookies
+ * - true if sameSite is 'none' (required by browsers)
+ * - true in production (HTTPS required)
+ * - false in development (HTTP allowed)
+ */
+const getSecureFlag = (): boolean => {
+  const sameSite = getSameSite();
+  // When sameSite is 'none', secure MUST be true
+  if (sameSite === 'none') {
+    return true;
+  }
+  return process.env.NODE_ENV === 'production';
 };
 
 @ApiTags('Auth')
@@ -71,11 +91,24 @@ export class AuthController {
     // Call service to get access and refresh tokens
     const result = await this.authService.login(dto);
 
+    const sameSite = getSameSite();
+    const secure = getSecureFlag();
+
+    // Debug logging (remove in production if needed)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🍪 Cookie settings:', {
+        sameSite,
+        secure,
+        allowCrossDomain: process.env.ALLOW_CROSS_DOMAIN_COOKIES,
+        nodeEnv: process.env.NODE_ENV,
+      });
+    }
+
     // Store refresh_token in httpOnly cookie
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true, // prevent JS access
-      secure: process.env.NODE_ENV === 'production', // secure on prod
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure, // required when sameSite is 'none'
+      sameSite, // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000, // valid for 7 days
     });
@@ -83,8 +116,8 @@ export class AuthController {
     // ✅ Store access_token as well (optional: HttpOnly or readable by JS)
     res.cookie('access_token', result.access_token, {
       httpOnly: true, // Must be true for secure auth
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure, // required when sameSite is 'none'
+      sameSite, // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 15 * 60 * 1000, // example: 15 minutes
     });
@@ -124,8 +157,8 @@ export class AuthController {
     // Set refresh_token cookie
     res.cookie('refresh_token', result.refresh_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure: getSecureFlag(), // required when sameSite is 'none'
+      sameSite: getSameSite(), // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -133,8 +166,8 @@ export class AuthController {
     // ✅ Set access_token as cookie
     res.cookie('access_token', result.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure: getSecureFlag(), // required when sameSite is 'none'
+      sameSite: getSameSite(), // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
       path: '/', // ensure consistent path
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
@@ -166,15 +199,15 @@ export class AuthController {
       httpOnly: true,
       expires: new Date(0),
       path: '/', // ensure consistent path
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure: getSecureFlag(), // required when sameSite is 'none'
+      sameSite: getSameSite(), // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
     });
     res.cookie('refresh_token', '', {
       httpOnly: true,
       expires: new Date(0),
       path: '/', // ensure consistent path
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: getSameSite(), // 'strict' in prod, 'lax' in dev
+      secure: getSecureFlag(), // required when sameSite is 'none'
+      sameSite: getSameSite(), // 'none' for cross-domain, 'strict' in prod, 'lax' in dev
     });
 
     return { message: 'Logged out successfully' };
