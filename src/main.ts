@@ -64,11 +64,7 @@ async function bootstrap() {
   // Get CORS origins from environment variables
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((origin) =>
     origin.trim(),
-  ) || [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://ecommerce-dashboard-r.vercel.app',
-  ];
+  );
 
   app.enableCors({
     origin: corsOrigins,
