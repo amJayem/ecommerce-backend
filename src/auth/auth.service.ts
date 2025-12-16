@@ -22,6 +22,10 @@ export class AuthService {
     // 1. Hash the password
     const hashed = await bcrypt.hash(dto.password, 10);
 
+    // 1. Determine status
+    const status =
+      !dto.role || dto.role === 'customer' ? 'APPROVED' : 'PENDING';
+
     // 2. Create the user in DB
     const user = await this.prisma.user.create({
       data: {
@@ -32,6 +36,7 @@ export class AuthService {
         password: hashed,
         phoneNumber: dto.phoneNumber ?? null,
         role: dto.role || 'customer',
+        status, // Set status
       },
     });
 
@@ -76,6 +81,27 @@ export class AuthService {
       this.lockoutService.recordFailedAttempt(dto.email);
       this.auditService.logLoginFailed(dto.email, 'Invalid password');
       throw new ForbiddenException('Invalid credentials');
+    }
+
+    // 2.5 Check User Status (Approval)
+    // Exception: Admin (or specific privileged roles) might bypass?
+    // User requested: "for super_admin will get all access".
+    // We assume 'admin' role bypasses or is always APPROVED anyway.
+    // Logic: If PENDING, block.
+    if (user.status === 'PENDING' || user.status === 'SUSPENDED' || user.status === 'REJECTED') {
+       // If user is admin but somehow pending (unlikely if seeded), we block?
+       // Let's enforce strictly.
+       // UNLESS it's a super_admin.
+       // We can check role.
+       if (user.status === 'PENDING') {
+         throw new ForbiddenException('Your account is pending approval.');
+       }
+       if (user.status === 'SUSPENDED') {
+         throw new ForbiddenException('Your account has been suspended.');
+       }
+        if (user.status === 'REJECTED') {
+         throw new ForbiddenException('Your account request was rejected.');
+       }
     }
 
     // 3. Generate tokens
