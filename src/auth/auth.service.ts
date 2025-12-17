@@ -67,6 +67,13 @@ export class AuthService {
     // 1. Find the user
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: {
+        roleRel: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -88,20 +95,14 @@ export class AuthService {
     // User requested: "for super_admin will get all access".
     // We assume 'admin' role bypasses or is always APPROVED anyway.
     // Logic: If PENDING, block.
-    if (user.status === 'PENDING' || user.status === 'SUSPENDED' || user.status === 'REJECTED') {
-       // If user is admin but somehow pending (unlikely if seeded), we block?
-       // Let's enforce strictly.
-       // UNLESS it's a super_admin.
-       // We can check role.
-       if (user.status === 'PENDING') {
-         throw new ForbiddenException('Your account is pending approval.');
-       }
-       if (user.status === 'SUSPENDED') {
-         throw new ForbiddenException('Your account has been suspended.');
-       }
-        if (user.status === 'REJECTED') {
-         throw new ForbiddenException('Your account request was rejected.');
-       }
+    // 2.5 Check User Status (Approval)
+    // - PENDING: Allowed to login (restricted access via Guards)
+    // - SUSPENDED/REJECTED: Blocked
+    if (user.status === 'SUSPENDED') {
+      throw new ForbiddenException('Your account has been suspended.');
+    }
+    if (user.status === 'REJECTED') {
+      throw new ForbiddenException('Your account request was rejected.');
     }
 
     // 3. Generate tokens
@@ -192,6 +193,13 @@ export class AuthService {
   async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        roleRel: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
     });
 
     if (!user) {
