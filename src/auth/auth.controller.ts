@@ -20,6 +20,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
+import { ApprovalGuard } from './guard/approval.guard';
 import {
   CurrentUser,
   JwtUserPayload,
@@ -217,7 +218,7 @@ export class AuthController {
    * Get current authenticated user profile
    */
   @Get('me')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({

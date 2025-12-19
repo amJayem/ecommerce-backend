@@ -23,6 +23,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/decorator/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
+import { ApprovalGuard } from '../auth/guard/approval.guard';
 
 @Controller('orders')
 export class OrderController {
@@ -41,7 +42,7 @@ export class OrderController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   findAll(@Query() query: any) {
@@ -49,14 +50,14 @@ export class OrderController {
   }
 
   @Get('my-orders')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   getMyOrders(@Request() req: any, @Query() query: any) {
     return this.orderService.getUserOrders(req.user.id, query);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     // Users can only view their own orders, admins can view all
@@ -67,7 +68,7 @@ export class OrderController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   update(
@@ -78,7 +79,7 @@ export class OrderController {
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   updateStatus(
@@ -89,7 +90,7 @@ export class OrderController {
   }
 
   @Patch(':id/payment-status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   updatePaymentStatus(
@@ -100,7 +101,7 @@ export class OrderController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     // Users can only cancel their own pending orders, admins can cancel any pending order

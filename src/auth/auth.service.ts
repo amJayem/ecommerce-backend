@@ -67,13 +67,6 @@ export class AuthService {
     // 1. Find the user
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: {
-        roleRel: {
-          include: {
-            permissions: true,
-          },
-        },
-      },
     });
 
     if (!user) {
@@ -193,13 +186,6 @@ export class AuthService {
   async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        roleRel: {
-          include: {
-            permissions: true,
-          },
-        },
-      },
     });
 
     if (!user) {

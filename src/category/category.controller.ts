@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/decorator/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
 import { OptionalJwtAuthGuard } from '../auth/guard/optional-jwt.guard';
-import { SuspensionGuard } from '../auth/guard/suspension.guard';
+import { ApprovalGuard } from '../auth/guard/approval.guard';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -33,7 +33,7 @@ export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth('access-token')
@@ -50,7 +50,7 @@ export class CategoryController {
   }
 
   @Get()
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all active categories with product counts' })
   @ApiResponse({ status: 200, description: 'List of categories returned' })
@@ -59,7 +59,7 @@ export class CategoryController {
   }
 
   @Get('hierarchy')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get category hierarchy (root categories with children)',
@@ -70,7 +70,7 @@ export class CategoryController {
   }
 
   @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get category by ID' })
   @ApiParam({ name: 'id', type: 'number', description: 'Category ID' })
@@ -81,7 +81,7 @@ export class CategoryController {
   }
 
   @Get('slug/:slug')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get category by slug' })
   @ApiParam({ name: 'slug', type: 'string', description: 'Category slug' })
@@ -92,7 +92,7 @@ export class CategoryController {
   }
 
   @Get(':id/products')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get products for a specific category' })
   @ApiParam({ name: 'id', type: 'number', description: 'Category ID' })
@@ -106,7 +106,7 @@ export class CategoryController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
@@ -128,7 +128,7 @@ export class CategoryController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')

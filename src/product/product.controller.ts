@@ -24,6 +24,7 @@ import { RolesGuard } from '../auth/decorator/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
 import { OptionalJwtAuthGuard } from '../auth/guard/optional-jwt.guard';
 import { SuspensionGuard } from '../auth/guard/suspension.guard';
+import { ApprovalGuard } from '../auth/guard/approval.guard';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -38,7 +39,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth('access-token')
@@ -51,7 +52,7 @@ export class ProductController {
   }
 
   @Get()
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'List products with filters and pagination' })
   @ApiQuery({
@@ -100,7 +101,7 @@ export class ProductController {
   }
 
   @Get('featured')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get featured products' })
   @ApiResponse({ status: 200, description: 'Featured products returned' })
@@ -109,7 +110,7 @@ export class ProductController {
   }
 
   @Get('bestsellers')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get bestseller products' })
   @ApiResponse({ status: 200, description: 'Bestseller products returned' })
@@ -118,7 +119,7 @@ export class ProductController {
   }
 
   @Get('search')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Search and filter products' })
   @ApiQuery({
@@ -175,7 +176,7 @@ export class ProductController {
   }
 
   @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get product by id' })
   @ApiResponse({ status: 200, description: 'Product returned' })
@@ -185,7 +186,7 @@ export class ProductController {
   }
 
   @Get('category/:slug')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get products by category slug' })
   @ApiResponse({
@@ -198,7 +199,7 @@ export class ProductController {
   }
 
   @Get('slug/:slug')
-  @UseGuards(OptionalJwtAuthGuard, SuspensionGuard)
+  @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get product by slug' })
   @ApiResponse({ status: 200, description: 'Product returned' })
@@ -208,7 +209,7 @@ export class ProductController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
@@ -225,7 +226,7 @@ export class ProductController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
@@ -238,7 +239,7 @@ export class ProductController {
   }
 
   @Patch(':id/stock')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')

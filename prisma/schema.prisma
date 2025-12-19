@@ -13,8 +13,7 @@ model User {
   email        String     @unique
   name         String
   password     String
-  role         String     @default("customer") // Relation to Role.name
-  roleRel      Role       @relation(fields: [role], references: [name])
+  role         String     @default("customer")
   status       UserStatus @default(PENDING)
   approvedBy   Int?
   approvedAt   DateTime?
@@ -33,19 +32,6 @@ enum UserStatus {
   APPROVED
   REJECTED
   SUSPENDED
-}
-
-model Role {
-  name        String       @id
-  permissions Permission[]
-  users       User[]
-}
-
-model Permission {
-  id          Int       @id @default(autoincrement())
-  action      String    @unique
-  description String?
-  roles       Role[]
 }
 
 model Category {
