@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthController } from './auth.controller';
+import { AuthPublicController } from './public/auth-public.controller';
+import { AuthAdminController } from './admin/auth-admin.controller';
 import { AuthService } from './auth.service';
 import { AuditService } from './audit.service';
 import { AccountLockoutService } from './account-lockout.service';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { ConfigService } from '@nestjs/config';
+import { PermissionModule } from '../permission/permission.module';
 
 @Module({
   imports: [
@@ -18,8 +20,9 @@ import { ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    PermissionModule, // Import to make PermissionService available to guards
   ],
-  controllers: [AuthController],
+  controllers: [AuthPublicController, AuthAdminController],
   providers: [
     AuthService,
     AuditService,

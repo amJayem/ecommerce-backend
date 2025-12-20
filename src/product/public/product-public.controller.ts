@@ -1,55 +1,26 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
-  UseGuards,
   ParseIntPipe,
   HttpStatus,
   HttpCode,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductService } from '../product.service';
 import {
   SearchProductDto,
   SearchProductResponseDto,
-} from './dto/search-product.dto';
-import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '../auth/decorator/roles.guard';
-import { Roles } from '../auth/decorator/roles.decorator';
-import { OptionalJwtAuthGuard } from '../auth/guard/optional-jwt.guard';
-import { SuspensionGuard } from '../auth/guard/suspension.guard';
-import { ApprovalGuard } from '../auth/guard/approval.guard';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+} from '../dto/search-product.dto';
+import { OptionalJwtAuthGuard } from '../../auth/guard/optional-jwt.guard';
+import { ApprovalGuard } from '../../auth/guard/approval.guard';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Products')
 @Controller('products')
-export class ProductController {
+export class ProductPublicController {
   constructor(private readonly productService: ProductService) {}
-
-  @Post()
-  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Create a product' })
-  @ApiResponse({ status: 201, description: 'Product created successfully' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
-  }
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
@@ -206,52 +177,5 @@ export class ProductController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   findBySlug(@Param('slug') slug: string) {
     return this.productService.findBySlug(slug);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Update product by id' })
-  @ApiResponse({ status: 200, description: 'Product updated' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateProductDto: UpdateProductDto,
-  ) {
-    return this.productService.update(id, updateProductDto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Delete product by id' })
-  @ApiResponse({ status: 200, description: 'Product deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.productService.remove(id);
-  }
-
-  @Patch(':id/stock')
-  @UseGuards(JwtAuthGuard, ApprovalGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.OK)
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Update stock quantity for a product' })
-  @ApiResponse({ status: 200, description: 'Stock updated' })
-  @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Product not found' })
-  updateStock(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() data: { quantity: number },
-  ) {
-    return this.productService.updateStock(id, data.quantity);
   }
 }

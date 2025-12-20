@@ -30,16 +30,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: number; email: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
     });
 
     if (!user) {
       return null; // or throw Unauthorized
     }
 
-    // Return the full user object (stripped of password if needed, but req.user usually acts as internal context)
-    // We can strip sensitive fields
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, ...userContext } = user;
-    return userContext;
+    const { password, refreshToken, permissions, ...userContext } = user;
+
+    return {
+      ...userContext,
+      permissions: permissions.map((up) => up.permission.name),
+    };
   }
 }

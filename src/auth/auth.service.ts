@@ -67,6 +67,13 @@ export class AuthService {
     // 1. Find the user
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -109,7 +116,13 @@ export class AuthService {
     this.auditService.logLoginSuccess(user.id, user.email);
 
     // 6. Return both tokens to frontend
-    return { ...tokens, ...user };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, refreshToken: __, permissions, ...userData } = user;
+    return {
+      ...tokens,
+      ...userData,
+      permissions: permissions.map((up) => up.permission.name),
+    };
   }
 
   async logout(email: string) {
@@ -118,6 +131,40 @@ export class AuthService {
       data: { refreshToken: null }, // 🧨 Invalidate token
     });
     return { ...user, message: 'User logout successfully' };
+  }
+
+  async loginAdmin(dto: LoginDto) {
+    const result = await this.login(dto);
+
+    // 1. Super admin always allowed
+    if (result.role === 'super_admin') {
+      return result;
+    }
+
+    // 2. For all others (admin, moderator, etc.), check status
+    // User must be explicitly APPROVED to access admin dashboard
+    if (result.status !== 'APPROVED') {
+      this.auditService.logLoginFailed(
+        dto.email,
+        `Unapproved user (${result.status}) attempted admin login`,
+      );
+      throw new ForbiddenException(
+        `Access denied. Your account status is ${result.status}. Please wait for admin approval.`,
+      );
+    }
+
+    // 3. Prevent regular customers from entering the admin dashboard
+    if (result.role === 'customer') {
+      this.auditService.logLoginFailed(
+        dto.email,
+        'Non-admin user attempted admin login',
+      );
+      throw new ForbiddenException(
+        'Access denied. Administrator privileges required.',
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -186,6 +233,13 @@ export class AuthService {
   async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -194,7 +248,10 @@ export class AuthService {
 
     // Remove sensitive fields (same as login response)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, ...userData } = user;
-    return userData;
+    const { password, refreshToken, permissions, ...userData } = user;
+    return {
+      ...userData,
+      permissions: permissions.map((up) => up.permission.name),
+    };
   }
 }

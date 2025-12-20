@@ -7,13 +7,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { UsersService } from '../users.service';
 import { UserStatus } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
-import { ApprovalGuard } from '../auth/guard/approval.guard';
-import { PermissionGuard } from '../auth/guard/permission.guard';
-import { Permissions } from '../auth/decorator/permissions.decorator';
-import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
+import { ApprovalGuard } from '../../auth/guard/approval.guard';
+import { PermissionGuard } from '../../auth/guard/permission.guard';
+import { Permissions } from '../../auth/decorator/permissions.decorator';
+import { CurrentUser } from '../../auth/decorator/current-user.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -28,7 +28,7 @@ import {
 @ApiBearerAuth('access-token')
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, ApprovalGuard, PermissionGuard)
-export class UsersController {
+export class UsersAdminController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()

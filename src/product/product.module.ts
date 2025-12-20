@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { ProductController } from './product.controller';
-import { PrismaModule } from '../prisma/prisma.module'; // 👈 Make sure the path is correct
+import { ProductPublicController } from './public/product-public.controller';
+import { ProductAdminController } from './admin/product-admin.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+import { PermissionModule } from '../permission/permission.module';
 
 @Module({
-  imports: [PrismaModule], // 👈 Add this
-  controllers: [ProductController],
+  imports: [PrismaModule, PermissionModule],
+  controllers: [ProductPublicController, ProductAdminController],
   providers: [ProductService],
 })
 export class ProductModule {}
