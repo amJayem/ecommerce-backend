@@ -1,30 +1,31 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Param,
   Body,
-  UseGuards,
-  ParseIntPipe,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
-  ApiParam,
   ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { PermissionService } from './permission.service';
-import { AssignPermissionsDto } from './dto/assign-permissions.dto';
-import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
-import { ApprovalGuard } from '../auth/guard/approval.guard';
-import { RolesGuard } from '../auth/decorator/roles.guard';
-import { Roles } from '../auth/decorator/roles.decorator';
 import { CurrentUser } from '../auth/decorator/current-user.decorator';
+import { Roles } from '../auth/decorator/roles.decorator';
+import { RolesGuard } from '../auth/decorator/roles.guard';
+import { ApprovalGuard } from '../auth/guard/approval.guard';
+import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { AssignPermissionsDto } from './dto/assign-permissions.dto';
+import { PermissionService } from './permission.service';
 
 @ApiTags('Admin Permissions')
 @ApiBearerAuth('access-token')
@@ -96,6 +97,24 @@ export class PermissionController {
       userId,
       dto.permissions,
       admin.id,
+    );
+  }
+
+  @Patch('user/:userId/sync')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sync user permissions (replace all existing)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiBody({ type: AssignPermissionsDto })
+  @ApiResponse({ status: 200, description: 'Permissions synced successfully' })
+  async syncPermissions(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: AssignPermissionsDto,
+    @CurrentUser() admin: any,
+  ) {
+    return this.permissionService.syncPermissions(
+      userId,
+      dto.permissions,
+      admin?.id,
     );
   }
 

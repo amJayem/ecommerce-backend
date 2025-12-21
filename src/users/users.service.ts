@@ -1,32 +1,65 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { UserStatus } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(status?: UserStatus) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: status ? { status } : {},
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        isVerified: true,
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
       },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Map to sanitize and flatten permissions
+    return users.map((user) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, refreshToken, permissions, ...userData } = user;
+      return {
+        ...userData,
+        permissions: permissions.map((up) => ({
+          id: up.permission.id,
+          name: up.permission.name,
+          category: up.permission.category,
+        })),
+        permissionNames: permissions.map((up) => up.permission.name),
+      };
     });
   }
 
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
     });
+
     if (!user) throw new NotFoundException('User not found');
-    return user;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, refreshToken, permissions, ...userData } = user;
+    return {
+      ...userData,
+      permissions: permissions.map((up) => ({
+        id: up.permission.id,
+        name: up.permission.name,
+        category: up.permission.category,
+      })),
+      permissionNames: permissions.map((up) => up.permission.name),
+    };
   }
 
   async approveUser(id: number, approvedBy: number) {

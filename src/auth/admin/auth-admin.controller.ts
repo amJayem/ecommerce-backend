@@ -8,22 +8,23 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
-import { Request, Response } from 'express';
-import { AuthService } from '../auth.service';
-import { LoginDto } from '../dto/login.dto';
-import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
-import { ApprovalGuard } from '../guard/approval.guard';
-import {
-  CurrentUser,
-  JwtUserPayload,
-} from '../decorator/current-user.decorator';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { Request, Response } from 'express';
+import { AuthService } from '../auth.service';
+import {
+  CurrentUser,
+  JwtUserPayload,
+} from '../decorator/current-user.decorator';
+import { LoginDto } from '../dto/login.dto';
+import { RegisterDto } from '../dto/register.dto';
+import { ApprovalGuard } from '../guard/approval.guard';
+import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
 
 export type TokenPair = {
   access_token: string;
@@ -50,6 +51,17 @@ const getSecureFlag = (): boolean => {
 @UseGuards(ThrottlerGuard)
 export class AuthAdminController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  @ApiOperation({ summary: 'Register a new admin/staff user' })
+  @ApiResponse({
+    status: 201,
+    description: 'Staff user registered, pending approval',
+  })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
 
   @Post('login')
   @ApiOperation({ summary: 'Admin login and set tokens in cookies' })

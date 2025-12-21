@@ -255,4 +255,59 @@ export class PermissionService {
       grantedAt: up.grantedAt,
     }));
   }
+
+  /**
+   * Sync permissions for a user (Set exactly these permissions)
+   */
+  async syncPermissions(
+    userId: number,
+    permissionNames: string[],
+    grantedBy?: number,
+  ) {
+    // 1. Verify User exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
+
+    // 2. Validate all permission names exist
+    const permissions = await this.prisma.permission.findMany({
+      where: { name: { in: permissionNames } },
+    });
+
+    if (permissions.length !== permissionNames.length) {
+      const foundNames = permissions.map((p) => p.name);
+      const missing = permissionNames.filter(
+        (name) => !foundNames.includes(name),
+      );
+      throw new NotFoundException(
+        `Permissions not found: ${missing.join(', ')}`,
+      );
+    }
+
+    // 3. Execute sync in a transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Remove all existing permissions
+      await tx.userPermission.deleteMany({
+        where: { userId },
+      });
+
+      // Add new permissions
+      if (permissionNames.length > 0) {
+        await tx.userPermission.createMany({
+          data: permissions.map((p) => ({
+            userId,
+            permissionId: p.id,
+            grantedBy,
+          })),
+        });
+      }
+
+      return {
+        message: 'Permissions synced successfully',
+        syncedCount: permissions.length,
+        permissions: permissionNames,
+      };
+    });
+  }
 }

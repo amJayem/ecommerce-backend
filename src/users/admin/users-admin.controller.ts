@@ -1,35 +1,39 @@
 import {
+  Body,
   Controller,
   Get,
-  Patch,
   Param,
-  Body,
+  Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { UsersService } from '../users.service';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
-import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorator/current-user.decorator';
+import { Permissions } from '../../auth/decorator/permissions.decorator';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
 import { PermissionGuard } from '../../auth/guard/permission.guard';
-import { Permissions } from '../../auth/decorator/permissions.decorator';
-import { CurrentUser } from '../../auth/decorator/current-user.decorator';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiQuery,
-  ApiBody,
-  ApiParam,
-} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
+import { PermissionService } from '../../permission/permission.service';
+import { UsersService } from '../users.service';
 
 @ApiTags('Admin Users')
 @ApiBearerAuth('access-token')
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, ApprovalGuard, PermissionGuard)
 export class UsersAdminController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly permissionService: PermissionService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List all users (filter by status)' })
@@ -109,5 +113,53 @@ export class UsersAdminController {
   @Permissions('user.manage')
   updateRole(@Param('id') id: string, @Body('role') role: string) {
     return this.usersService.updateRole(+id, role);
+  }
+
+  @Patch(':id/access')
+  @ApiOperation({
+    summary: 'Update user role and permissions in one operation',
+  })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        role: { type: 'string', example: 'moderator' },
+        permissions: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['product.read'],
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User access updated successfully.',
+  })
+  @Permissions('user.manage')
+  async updateAccess(
+    @Param('id') id: string,
+    @Body() dto: { role?: string; permissions?: string[] },
+    @CurrentUser() admin: any,
+  ) {
+    const userId = +id;
+    const results: any = { message: 'Access updated successfully' };
+
+    // 1. Update role if provided
+    if (dto.role) {
+      results.roleUpdate = await this.usersService.updateRole(userId, dto.role);
+    }
+
+    // 2. Sync permissions if provided
+    if (dto.permissions) {
+      results.permissionSync = await this.permissionService.syncPermissions(
+        userId,
+        dto.permissions,
+        admin?.id,
+      );
+    }
+
+    return results;
   }
 }
