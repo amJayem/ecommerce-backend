@@ -181,9 +181,8 @@ export class AuthAdminController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMe(@CurrentUser() user: JwtUserPayload) {
-    const userData = await this.authService.getUserById(user.userId);
     return {
-      user: userData,
+      user,
     };
   }
 }
