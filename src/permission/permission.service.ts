@@ -301,12 +301,26 @@ export class PermissionService {
             grantedBy,
           })),
         });
+
+        // Automatically approve user if they are PENDING
+        if (user.status === 'PENDING') {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              status: 'APPROVED',
+              approvedBy: grantedBy,
+              approvedAt: new Date(),
+            },
+          });
+        }
       }
 
       return {
         message: 'Permissions synced successfully',
         syncedCount: permissions.length,
         permissions: permissionNames,
+        automaticallyApproved:
+          user.status === 'PENDING' && permissionNames.length > 0,
       };
     });
   }
