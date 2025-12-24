@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -150,12 +152,37 @@ export class ProductService {
     } catch (error) {
       if (
         error instanceof ConflictException ||
-        error instanceof NotFoundException
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
       ) {
         throw error;
       }
-      console.error('Error creating product:', error);
-      throw new Error('Failed to create product');
+
+      // Handle Prisma Known Request Errors (e.g., unique constraints)
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          const target = (error.meta?.target as string[]) || [];
+          throw new ConflictException(
+            `Product with this ${target.join(', ')} already exists`,
+          );
+        }
+      }
+
+      // Handle Prisma Validation Errors (e.g., missing required fields)
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        console.error(
+          'Validation Error during product creation:',
+          error.message,
+        );
+        throw new BadRequestException(
+          'Invalid product data. Please ensure all required fields are provided correctly.',
+        );
+      }
+
+      console.error('Unexpected error creating product:', error);
+      throw new Error(
+        `Failed to create product: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
