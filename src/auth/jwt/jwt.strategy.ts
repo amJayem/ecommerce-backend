@@ -30,25 +30,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: number; email: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
     });
 
     if (!user) {
-      return null; // or throw Unauthorized
+      return null;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, permissions, ...userContext } = user;
+    const { password, refreshToken, ...userContext } = user;
 
     return {
       ...userContext,
-      permissions: permissions.map((up) => up.permission.name),
+      permissions: user.permissions,
     };
   }
 }

@@ -23,7 +23,7 @@ model User {
   isVerified   Boolean    @default(false)
   phoneNumber  String?
   orders       Order[]
-  permissions  UserPermission[]
+  permissions  String[]   @default([])
 
   @@index([refreshToken])
 }
@@ -33,32 +33,6 @@ enum UserStatus {
   APPROVED
   REJECTED
   SUSPENDED
-}
-
-model Permission {
-  id          Int              @id @default(autoincrement())
-  name        String           @unique // e.g., "order.read", "product.create"
-  description String?
-  category    String?          // e.g., "order", "product", "category", "user"
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  users       UserPermission[]
-
-  @@index([category])
-}
-
-model UserPermission {
-  id           Int        @id @default(autoincrement())
-  userId       Int
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permissionId Int
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  grantedBy    Int?       // Admin who granted this permission
-  grantedAt    DateTime   @default(now())
-
-  @@unique([userId, permissionId])
-  @@index([userId])
-  @@index([permissionId])
 }
 
 model Category {

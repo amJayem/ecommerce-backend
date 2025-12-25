@@ -6,12 +6,28 @@ export class PermissionService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Get all available permissions
+   * Get all available permissions (Now returns a list of common strings, as they are no longer in DB)
+   * This is technically optional now since permissions are defined by the frontend/guard.
    */
   async getAllPermissions() {
-    return this.prisma.permission.findMany({
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-    });
+    return [
+      { name: 'order.read', category: 'order' },
+      { name: 'order.create', category: 'order' },
+      { name: 'order.update', category: 'order' },
+      { name: 'order.delete', category: 'order' },
+      { name: 'product.read', category: 'product' },
+      { name: 'product.create', category: 'product' },
+      { name: 'product.update', category: 'product' },
+      { name: 'product.delete', category: 'product' },
+      { name: 'category.read', category: 'category' },
+      { name: 'category.create', category: 'category' },
+      { name: 'category.update', category: 'category' },
+      { name: 'category.delete', category: 'category' },
+      { name: 'user.read', category: 'user' },
+      { name: 'user.approve', category: 'user' },
+      { name: 'user.manage', category: 'user' },
+      { name: 'admin.action', category: 'admin' },
+    ];
   }
 
   /**
@@ -19,47 +35,30 @@ export class PermissionService {
    */
   async getPermissionsByCategory() {
     const permissions = await this.getAllPermissions();
-
-    const grouped = permissions.reduce(
-      (acc, permission) => {
-        const category = permission.category || 'other';
-        if (!acc[category]) {
-          acc[category] = [];
-        }
-        acc[category].push(permission);
+    return permissions.reduce(
+      (acc, p) => {
+        if (!acc[p.category]) acc[p.category] = [];
+        acc[p.category].push(p.name);
         return acc;
       },
-      {} as Record<string, typeof permissions>,
+      {} as Record<string, string[]>,
     );
-
-    return grouped;
   }
 
   /**
    * Get user's permissions
    */
   async getUserPermissions(userId: number) {
-    const userPermissions = await this.prisma.userPermission.findMany({
-      where: { userId },
-      include: {
-        permission: true,
-      },
-      orderBy: {
-        permission: {
-          name: 'asc',
-        },
-      },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { permissions: true },
     });
 
-    return userPermissions.map((up) => ({
-      id: up.id,
-      permissionId: up.permissionId,
-      name: up.permission.name,
-      description: up.permission.description,
-      category: up.permission.category,
-      grantedBy: up.grantedBy,
-      grantedAt: up.grantedAt,
-    }));
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    return user.permissions;
   }
 
   /**
@@ -69,67 +68,42 @@ export class PermissionService {
     userId: number,
     permissionName: string,
   ): Promise<boolean> {
-    const count = await this.prisma.userPermission.count({
-      where: {
-        userId,
-        permission: {
-          name: permissionName,
-        },
-      },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { permissions: true },
     });
 
-    return count > 0;
+    if (!user) return false;
+
+    return user.permissions.includes(permissionName);
   }
 
   /**
    * Assign a single permission to a user
    */
-  async assignPermission(
-    userId: number,
-    permissionName: string,
-    grantedBy?: number,
-  ) {
-    // Check if permission exists
-    const permission = await this.prisma.permission.findUnique({
-      where: { name: permissionName },
-    });
-
-    if (!permission) {
-      throw new NotFoundException(`Permission "${permissionName}" not found`);
-    }
-
-    // Check if user exists
+  async assignPermission(userId: number, permissionName: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      select: { permissions: true },
     });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    // Check if already assigned
-    const existing = await this.prisma.userPermission.findUnique({
-      where: {
-        userId_permissionId: {
-          userId,
-          permissionId: permission.id,
-        },
-      },
-    });
-
-    if (existing) {
+    if (user.permissions.includes(permissionName)) {
       return {
         message: 'Permission already assigned',
         permission: permissionName,
       };
     }
 
-    // Assign permission
-    await this.prisma.userPermission.create({
+    await this.prisma.user.update({
+      where: { id: userId },
       data: {
-        userId,
-        permissionId: permission.id,
-        grantedBy,
+        permissions: {
+          push: permissionName,
+        },
       },
     });
 
@@ -145,63 +119,57 @@ export class PermissionService {
   async assignPermissions(
     userId: number,
     permissionNames: string[],
-    grantedBy?: number,
+    grantedBy?: number, // Kept for compatibility, though not used in simple array storage
   ) {
-    const results = {
-      assigned: [] as string[],
-      alreadyAssigned: [] as string[],
-      notFound: [] as string[],
-    };
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { permissions: true },
+    });
 
-    for (const permissionName of permissionNames) {
-      try {
-        const result = await this.assignPermission(
-          userId,
-          permissionName,
-          grantedBy,
-        );
-
-        if (result.message === 'Permission already assigned') {
-          results.alreadyAssigned.push(permissionName);
-        } else {
-          results.assigned.push(permissionName);
-        }
-      } catch (error) {
-        if (error instanceof NotFoundException) {
-          results.notFound.push(permissionName);
-        } else {
-          throw error;
-        }
-      }
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    return results;
+    const newPermissions = [
+      ...new Set([...user.permissions, ...permissionNames]),
+    ];
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        permissions: newPermissions,
+      },
+    });
+
+    return {
+      message: 'Permissions updated successfully',
+      assigned: permissionNames,
+    };
   }
 
   /**
    * Revoke a permission from a user
    */
   async revokePermission(userId: number, permissionName: string) {
-    const permission = await this.prisma.permission.findUnique({
-      where: { name: permissionName },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { permissions: true },
     });
 
-    if (!permission) {
-      throw new NotFoundException(`Permission "${permissionName}" not found`);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    const deleted = await this.prisma.userPermission.deleteMany({
-      where: {
-        userId,
-        permissionId: permission.id,
+    const updatedPermissions = user.permissions.filter(
+      (p) => p !== permissionName,
+    );
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        permissions: updatedPermissions,
       },
     });
-
-    if (deleted.count === 0) {
-      throw new NotFoundException(
-        `User does not have permission "${permissionName}"`,
-      );
-    }
 
     return {
       message: 'Permission revoked successfully',
@@ -213,13 +181,15 @@ export class PermissionService {
    * Revoke all permissions from a user
    */
   async revokeAllPermissions(userId: number) {
-    const deleted = await this.prisma.userPermission.deleteMany({
-      where: { userId },
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        permissions: [],
+      },
     });
 
     return {
       message: 'All permissions revoked',
-      count: deleted.count,
     };
   }
 
@@ -227,32 +197,24 @@ export class PermissionService {
    * Get users who have a specific permission
    */
   async getUsersWithPermission(permissionName: string) {
-    const permission = await this.prisma.permission.findUnique({
-      where: { name: permissionName },
-      include: {
-        users: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
+    const users = await this.prisma.user.findMany({
+      where: {
+        permissions: {
+          has: permissionName,
         },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
       },
     });
 
-    if (!permission) {
-      throw new NotFoundException(`Permission "${permissionName}" not found`);
-    }
-
-    return permission.users.map((up) => ({
-      ...up.user,
-      grantedBy: up.grantedBy,
-      grantedAt: up.grantedAt,
+    return users.map((user) => ({
+      ...user,
+      grantedAt: new Date(), // Mocked as it's no longer tracked per-permission
     }));
   }
 
@@ -264,60 +226,31 @@ export class PermissionService {
     permissionNames: string[],
     grantedBy?: number,
   ) {
-    // 1. Verify User exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
     if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
 
-    // 2. Validate all permission names exist
-    const permissions = await this.prisma.permission.findMany({
-      where: { name: { in: permissionNames } },
-    });
-
-    if (permissions.length !== permissionNames.length) {
-      const foundNames = permissions.map((p) => p.name);
-      const missing = permissionNames.filter(
-        (name) => !foundNames.includes(name),
-      );
-      throw new NotFoundException(
-        `Permissions not found: ${missing.join(', ')}`,
-      );
-    }
-
-    // 3. Execute sync in a transaction
     return this.prisma.$transaction(async (tx) => {
-      // Remove all existing permissions
-      await tx.userPermission.deleteMany({
-        where: { userId },
-      });
+      const updateData: any = {
+        permissions: permissionNames,
+      };
 
-      // Add new permissions
-      if (permissionNames.length > 0) {
-        await tx.userPermission.createMany({
-          data: permissions.map((p) => ({
-            userId,
-            permissionId: p.id,
-            grantedBy,
-          })),
-        });
-
-        // Automatically approve user if they are PENDING
-        if (user.status === 'PENDING') {
-          await tx.user.update({
-            where: { id: userId },
-            data: {
-              status: 'APPROVED',
-              approvedBy: grantedBy,
-              approvedAt: new Date(),
-            },
-          });
-        }
+      // Automatically approve user if they are PENDING and getting permissions
+      if (user.status === 'PENDING' && permissionNames.length > 0) {
+        updateData.status = 'APPROVED';
+        updateData.approvedBy = grantedBy;
+        updateData.approvedAt = new Date();
       }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
 
       return {
         message: 'Permissions synced successfully',
-        syncedCount: permissions.length,
+        syncedCount: permissionNames.length,
         permissions: permissionNames,
         automaticallyApproved:
           user.status === 'PENDING' && permissionNames.length > 0,

@@ -67,13 +67,6 @@ export class AuthService {
     // 1. Find the user
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
     });
 
     if (!user) {
@@ -117,11 +110,11 @@ export class AuthService {
 
     // 6. Return both tokens to frontend
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, refreshToken: __, permissions, ...userData } = user;
+    const { password: _, refreshToken: __, ...userData } = user;
     return {
       ...tokens,
       ...userData,
-      permissions: permissions.map((up) => up.permission.name),
+      permissions: user.permissions,
     };
   }
 
@@ -233,13 +226,6 @@ export class AuthService {
   async getUserById(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
     });
 
     if (!user) {
@@ -248,10 +234,10 @@ export class AuthService {
 
     // Remove sensitive fields (same as login response)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, permissions, ...userData } = user;
+    const { password, refreshToken, ...userData } = user;
     return {
       ...userData,
-      permissions: permissions.map((up) => up.permission.name),
+      permissions: user.permissions,
     };
   }
 }

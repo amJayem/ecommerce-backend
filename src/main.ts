@@ -5,6 +5,7 @@ import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 const port = process.env.PORT ?? 3456;
+const DATABASE_URL = process.env.DATABASE_URL;
 const prefix = `/api/v1`;
 
 async function bootstrap() {
@@ -74,21 +75,22 @@ async function bootstrap() {
   });
 
   await app.listen(port, () => {
-    console.log(`✅ CORS origins: ${corsOrigins?.join(', ')}`);
-    console.log(
-      `✅ Cookie settings: SameSite=${
-        process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
-          ? 'none'
-          : process.env.NODE_ENV === 'production'
-            ? 'strict'
-            : 'lax'
-      }, 
-        Secure=${
-          process.env.NODE_ENV === 'production' ||
-          process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
-        }`,
-    );
+    // console.log(`✅ CORS origins: ${corsOrigins?.join(', ')}`);
+    // console.log(
+    //   `✅ Cookie settings: SameSite=${
+    //     process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
+    //       ? 'none'
+    //       : process.env.NODE_ENV === 'production'
+    //         ? 'strict'
+    //         : 'lax'
+    //   },
+    //     Secure=${
+    //       process.env.NODE_ENV === 'production' ||
+    //       process.env.ALLOW_CROSS_DOMAIN_COOKIES === 'true'
+    //     }`,
+    // );
     console.log(`✅ Server running on: http://localhost:${port}${prefix}`);
+    console.log(`✅ Database URL: ${DATABASE_URL}`);
     if (enableSwagger) {
       console.log(`✅ Swagger docs: http://localhost:${port}/docs`);
     }

@@ -9,28 +9,16 @@ export class UsersService {
   async findAll(status?: UserStatus) {
     const users = await this.prisma.user.findMany({
       where: status ? { status } : {},
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Map to sanitize and flatten permissions
+    // Map to sanitize
     return users.map((user) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, refreshToken, permissions, ...userData } = user;
+      const { password, refreshToken, ...userData } = user;
       return {
         ...userData,
-        permissions: permissions.map((up) => ({
-          id: up.permission.id,
-          name: up.permission.name,
-          category: up.permission.category,
-        })),
-        permissionNames: permissions.map((up) => up.permission.name),
+        permissionNames: user.permissions,
       };
     });
   }
@@ -38,27 +26,15 @@ export class UsersService {
   async findOne(id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
     });
 
     if (!user) throw new NotFoundException('User not found');
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, refreshToken, permissions, ...userData } = user;
+    const { password, refreshToken, ...userData } = user;
     return {
       ...userData,
-      permissions: permissions.map((up) => ({
-        id: up.permission.id,
-        name: up.permission.name,
-        category: up.permission.category,
-      })),
-      permissionNames: permissions.map((up) => up.permission.name),
+      permissionNames: user.permissions,
     };
   }
 
