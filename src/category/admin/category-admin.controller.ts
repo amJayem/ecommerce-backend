@@ -61,6 +61,24 @@ export class CategoryAdminController {
     return this.categoryService.findOne(id);
   }
 
+  @Get(':id/products')
+  @Permissions('product.read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all products in a category (Admin)' })
+  @ApiParam({ name: 'id', type: 'number', description: 'Category ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Products in the category returned',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Requires product.read permission.',
+  })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  async getCategoryProducts(@Param('id', ParseIntPipe) id: number) {
+    return this.categoryService.getCategoryProducts(id);
+  }
+
   @Post()
   @Permissions('category.create')
   @HttpCode(HttpStatus.CREATED)
