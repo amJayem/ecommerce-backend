@@ -492,12 +492,6 @@ export class ProductService {
         updateData.tags = [];
       }
 
-      // Map featured to isFeatured for now
-      if (updateData.featured !== undefined) {
-        updateData.isFeatured = updateData.featured;
-        delete updateData.featured;
-      }
-
       const product = await this.prisma.product.update({
         where: { id },
         data: updateData,
