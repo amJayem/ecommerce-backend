@@ -15,6 +15,7 @@ import {
 import { OrderService } from '../order.service';
 import { OrderStatus, PaymentStatus } from '../dto/create-order.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
+import { OrderQueryDto } from '../dto/order-query.dto';
 import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { PermissionGuard } from '../../auth/guard/permission.guard';
 import { Permissions } from '../../auth/decorator/permissions.decorator';
@@ -42,7 +43,7 @@ export class OrderAdminController {
     status: 403,
     description: 'Forbidden. Requires order.read permission.',
   })
-  findAll(@Query() query: any) {
+  findAll(@Query() query: OrderQueryDto) {
     return this.orderService.findAll(query);
   }
 

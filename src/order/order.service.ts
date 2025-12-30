@@ -11,6 +11,7 @@ import {
   PaymentStatus,
 } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { OrderQueryDto } from './dto/order-query.dto';
 
 @Injectable()
 export class OrderService {
@@ -206,18 +207,18 @@ export class OrderService {
     }
   }
 
-  async findAll(query?: {
-    userId?: number;
-    status?: OrderStatus;
-    paymentStatus?: PaymentStatus;
-    page?: number;
-    limit?: number;
-  }) {
+  async findAll(query?: OrderQueryDto) {
     try {
       const {
         userId,
         status,
         paymentStatus,
+        search,
+        startDate,
+        endDate,
+        minAmount,
+        maxAmount,
+        paymentMethod,
         page = 1,
         limit = 20,
       } = query || {};
@@ -237,6 +238,62 @@ export class OrderService {
         where.paymentStatus = paymentStatus;
       }
 
+      // Date Range Filter
+      if (startDate || endDate) {
+        where.createdAt = {};
+        if (startDate) {
+          where.createdAt.gte = new Date(startDate);
+        }
+        if (endDate) {
+          where.createdAt.lte = new Date(endDate);
+        }
+      }
+
+      // Amount Range Filter
+      if (minAmount !== undefined || maxAmount !== undefined) {
+        where.totalAmount = {};
+        if (minAmount !== undefined) {
+          where.totalAmount.gte = minAmount;
+        }
+        if (maxAmount !== undefined) {
+          where.totalAmount.lte = maxAmount;
+        }
+      }
+
+      // Payment Method Filter
+      if (paymentMethod) {
+        where.paymentMethod = {
+          contains: paymentMethod,
+          mode: 'insensitive',
+        };
+      }
+
+      // Search Logic (Order ID or Customer Details)
+      if (search) {
+        const searchConditions: Prisma.OrderWhereInput[] = [
+          // Search in Customer Details (User model)
+          {
+            user: {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+                { phoneNumber: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+          // Search in Shipping Address Text
+          { shippingAddressText: { contains: search, mode: 'insensitive' } },
+        ];
+
+        // If search is numeric, also search by Order ID
+        const searchAsNumber = parseInt(search, 10);
+        if (!isNaN(searchAsNumber)) {
+          searchConditions.push({ id: searchAsNumber });
+        }
+
+        where.OR = searchConditions;
+      }
+
       const skip = (page - 1) * limit;
 
       const [orders, total] = await Promise.all([
@@ -248,6 +305,7 @@ export class OrderService {
                 id: true,
                 name: true,
                 email: true,
+                phoneNumber: true,
               },
             },
             items: {

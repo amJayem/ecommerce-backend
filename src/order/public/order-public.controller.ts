@@ -15,6 +15,30 @@ import {
 } from '@nestjs/common';
 import { OrderService } from '../order.service';
 import { CreateOrderDto, OrderStatus } from '../dto/create-order.dto';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class UserOrderQueryDto {
+  @ApiPropertyOptional({ enum: OrderStatus })
+  @IsOptional()
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+}
 import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
 import {
@@ -46,7 +70,7 @@ export class OrderPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get current user orders' })
   @ApiResponse({ status: 200, description: 'User orders returned' })
-  getMyOrders(@Request() req: any, @Query() query: any) {
+  getMyOrders(@Request() req: any, @Query() query: UserOrderQueryDto) {
     return this.orderService.getUserOrders(req.user.id, query);
   }
 
