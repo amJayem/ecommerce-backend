@@ -7,13 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PermissionModule } from '../permission/permission.module';
 
 @Module({
-  imports: [
-    PrismaModule,
-    PermissionModule,
-    MulterModule.register({
-      dest: './uploads', // temporary storage if needed, but we use memoryBuffer
-    }),
-  ],
+  imports: [PrismaModule, PermissionModule, MulterModule.register({})],
   controllers: [ProductPublicController, ProductAdminController],
   providers: [ProductService],
 })

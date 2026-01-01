@@ -874,12 +874,19 @@ export class ProductService {
   }
 
   async importProductsFromCsv(buffer: Buffer) {
+    console.log('CSV Import started. Buffer size:', buffer.length);
     const records = parse(buffer, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
       cast: true,
+      bom: true, // Handle Byte Order Mark
     }) as any[];
+
+    console.log('Parsed records count:', records.length);
+    if (records.length > 0) {
+      console.log('First record keys:', Object.keys(records[0]));
+    }
 
     const results = {
       created: 0,
