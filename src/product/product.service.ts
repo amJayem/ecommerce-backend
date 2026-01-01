@@ -3,8 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { stringify } from 'csv-stringify';
+import { parse } from 'csv-parse/sync';
+import { Readable } from 'stream';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -793,5 +797,162 @@ export class ProductService {
         `Failed to search products: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
+  }
+
+  async exportProductsToCsv(): Promise<string> {
+    const products = await this.prisma.product.findMany({
+      include: {
+        category: {
+          select: { name: true },
+        },
+      },
+    });
+
+    const data = products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      sku: p.sku || '',
+      brand: p.brand || '',
+      price: p.price,
+      originalPrice: p.originalPrice || '',
+      discount: p.discount,
+      stock: p.stock,
+      unit: p.unit,
+      weight: p.weight || '',
+      categoryId: p.categoryId || '',
+      categoryName: p.category?.name || '',
+      status: p.status,
+      isActive: p.isActive,
+      images: (p.images || []).join(','),
+      tags: (p.tags || []).join(','),
+      shortDescription: p.shortDescription || '',
+      description: p.description || '',
+      detailedDescription: p.detailedDescription || '',
+      coverImage: p.coverImage || '',
+      featured: p.featured,
+      bestseller: p.bestseller,
+    }));
+
+    return new Promise((resolve, reject) => {
+      stringify(
+        data,
+        {
+          header: true,
+          columns: [
+            'id',
+            'name',
+            'slug',
+            'sku',
+            'brand',
+            'price',
+            'originalPrice',
+            'discount',
+            'stock',
+            'unit',
+            'weight',
+            'categoryId',
+            'categoryName',
+            'status',
+            'isActive',
+            'images',
+            'tags',
+            'shortDescription',
+            'description',
+            'detailedDescription',
+            'coverImage',
+            'featured',
+            'bestseller',
+          ],
+        },
+        (err, output) => {
+          if (err) reject(err);
+          resolve(output);
+        },
+      );
+    });
+  }
+
+  async importProductsFromCsv(buffer: Buffer) {
+    const records = parse(buffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      cast: true,
+    }) as any[];
+
+    const results = {
+      created: 0,
+      updated: 0,
+      errors: [] as string[],
+    };
+
+    for (const record of records) {
+      try {
+        const productId = parseInt(record.id, 10);
+        const data = {
+          name: record.name,
+          slug: record.slug || this.generateSlugFromName(record.name),
+          sku: record.sku || null,
+          brand: record.brand || null,
+          price: parseFloat(record.price) || 0,
+          originalPrice: record.originalPrice
+            ? parseFloat(record.originalPrice)
+            : null,
+          discount: parseFloat(record.discount) || 0,
+          stock: parseInt(record.stock, 10) || 0,
+          unit: record.unit || 'piece',
+          weight: record.weight ? parseFloat(record.weight) : null,
+          categoryId: record.categoryId
+            ? parseInt(record.categoryId, 10)
+            : null,
+          status: record.status || 'draft',
+          isActive: String(record.isActive).toLowerCase() === 'true',
+          images: record.images ? record.images.split(',') : [],
+          tags: record.tags ? record.tags.split(',') : [],
+          shortDescription: record.shortDescription || null,
+          description: record.description || '',
+          detailedDescription: record.detailedDescription || null,
+          coverImage: record.coverImage || null,
+          featured: String(record.featured).toLowerCase() === 'true',
+          bestseller: String(record.bestseller).toLowerCase() === 'true',
+        };
+
+        // Upsert logic
+        if (!isNaN(productId)) {
+          await this.prisma.product.upsert({
+            where: { id: productId },
+            update: data,
+            create: { ...data, id: productId },
+          });
+          results.updated++;
+        } else {
+          // If no ID provided, try to find by slug first to avoid duplicates
+          const existing = await this.prisma.product.findUnique({
+            where: { slug: data.slug },
+          });
+
+          if (existing) {
+            await this.prisma.product.update({
+              where: { id: existing.id },
+              data,
+            });
+            results.updated++;
+          } else {
+            const newId = await this.generateProductId();
+            await this.prisma.product.create({
+              data: { ...data, id: newId },
+            });
+            results.created++;
+          }
+        }
+      } catch (error) {
+        results.errors.push(
+          `Error at row ${record.name || 'unknown'}: ${error.message}`,
+        );
+      }
+    }
+
+    return results;
   }
 }

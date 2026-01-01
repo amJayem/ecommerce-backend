@@ -11,7 +11,13 @@ import {
   HttpCode,
   Get,
   Query,
+  UseInterceptors,
+  UploadedFile,
+  Res,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { ProductService } from '../product.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
@@ -109,6 +115,30 @@ export class ProductAdminController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.productService.remove(id);
+  }
+
+  @Get('export/csv')
+  @Permissions('product.read')
+  @ApiOperation({ summary: 'Export all products to CSV' })
+  async exportCsv(@Res() res: Response) {
+    const csv = await this.productService.exportProductsToCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=products_export.csv',
+    );
+    return res.status(200).send(csv);
+  }
+
+  @Post('import/csv')
+  @Permissions('product.create')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Import products from CSV' })
+  async importCsv(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+    return this.productService.importProductsFromCsv(file.buffer);
   }
 
   @Patch(':id/stock')
