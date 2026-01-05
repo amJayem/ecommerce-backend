@@ -962,4 +962,75 @@ export class ProductService {
 
     return results;
   }
+
+  async getSampleProductsCsv(): Promise<string> {
+    const data = [
+      {
+        id: 202601051,
+        name: 'Red Lentils (Masoor Dal) – 1kg',
+        slug: 'red-lentils-masoor-dal-1kg',
+        sku: 'DAL-001',
+        brand: 'FreshHarvest',
+        price: 3.99,
+        originalPrice: 3.99,
+        discount: 12.5,
+        stock: 120,
+        unit: 'piece',
+        weight: 1,
+        categoryId: 1,
+        categoryName: 'Staples',
+        status: 'active',
+        isActive: true,
+        images:
+          'https://cdn.shopify.com/s/files/1/0850/9797/2012/files/Red_Lentils_Masoor_Dal_1kg.png?v=1755707998',
+        tags: 'lentils,masoor,protein,staples,vegan',
+        shortDescription: '',
+        description:
+          'Premium-grade red lentils (Masoor Dal) that are double-cleaned for purity and even cooking.',
+        detailedDescription: '',
+        coverImage:
+          'https://cdn.shopify.com/s/files/1/0850/9797/2012/files/Red_Lentils_Masoor_Dal_1kg.png?v=1755707998',
+        featured: true,
+        bestseller: false,
+      },
+    ];
+
+    return new Promise((resolve, reject) => {
+      stringify(
+        data,
+        {
+          header: true,
+          columns: [
+            'id',
+            'name',
+            'slug',
+            'sku',
+            'brand',
+            'price',
+            'originalPrice',
+            'discount',
+            'stock',
+            'unit',
+            'weight',
+            'categoryId',
+            'categoryName',
+            'status',
+            'isActive',
+            'images',
+            'tags',
+            'shortDescription',
+            'description',
+            'detailedDescription',
+            'coverImage',
+            'featured',
+            'bestseller',
+          ],
+        },
+        (err, output) => {
+          if (err) reject(err);
+          resolve(output);
+        },
+      );
+    });
+  }
 }

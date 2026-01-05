@@ -149,6 +149,19 @@ export class CategoryAdminController {
     return this.categoryService.remove(id);
   }
 
+  @Get('export/sample')
+  @Permissions('category.read')
+  @ApiOperation({ summary: 'Export sample category CSV template' })
+  async exportSample(@Res() res: Response) {
+    const csv = await this.categoryService.getSampleCategoriesCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=categories_sample.csv',
+    );
+    return res.status(200).send(csv);
+  }
+
   @Get('export/csv')
   @Permissions('category.read')
   @ApiOperation({ summary: 'Export all categories to CSV' })

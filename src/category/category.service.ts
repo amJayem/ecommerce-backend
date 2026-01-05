@@ -476,6 +476,55 @@ export class CategoryService {
     }
   }
 
+  async getSampleCategoriesCsv(): Promise<string> {
+    const data = [
+      {
+        id: 1,
+        name: 'Staples',
+        slug: 'staples',
+        description:
+          'Essential food items including rice, lentils, grains, and basic cooking ingredients',
+        icon: '🌾',
+        image:
+          'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400',
+        parentId: '',
+        parentName: '',
+        isActive: true,
+        sortOrder: 1,
+        metaTitle: 'Staples - Essential Food Items',
+        metaDescription:
+          'Shop for rice, lentils, grains and essential cooking ingredients',
+      },
+    ];
+
+    return new Promise((resolve, reject) => {
+      stringify(
+        data,
+        {
+          header: true,
+          columns: [
+            'id',
+            'name',
+            'slug',
+            'description',
+            'icon',
+            'image',
+            'parentId',
+            'parentName',
+            'isActive',
+            'sortOrder',
+            'metaTitle',
+            'metaDescription',
+          ],
+        },
+        (err, output) => {
+          if (err) reject(err);
+          resolve(output);
+        },
+      );
+    });
+  }
+
   private generateSlugFromName(name: string): string {
     if (!name) return '';
     return name

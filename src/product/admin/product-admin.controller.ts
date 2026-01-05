@@ -117,6 +117,19 @@ export class ProductAdminController {
     return this.productService.remove(id);
   }
 
+  @Get('export/sample')
+  @Permissions('product.read')
+  @ApiOperation({ summary: 'Export sample product CSV template' })
+  async exportSample(@Res() res: Response) {
+    const csv = await this.productService.getSampleProductsCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=products_sample.csv',
+    );
+    return res.status(200).send(csv);
+  }
+
   @Get('export/csv')
   @Permissions('product.read')
   @ApiOperation({ summary: 'Export all products to CSV' })
