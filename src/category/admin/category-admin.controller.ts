@@ -10,6 +10,10 @@ import {
   HttpStatus,
   HttpCode,
   Get,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { CategoryService } from '../category.service';
 import { CreateCategoryDto } from '../dto/create-category.dto';
@@ -18,6 +22,8 @@ import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { PermissionGuard } from '../../auth/guard/permission.guard';
 import { Permissions } from '../../auth/decorator/permissions.decorator';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -141,5 +147,29 @@ export class CategoryAdminController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.remove(id);
+  }
+
+  @Get('export/csv')
+  @Permissions('category.read')
+  @ApiOperation({ summary: 'Export all categories to CSV' })
+  async exportCsv(@Res() res: Response) {
+    const csv = await this.categoryService.exportCategoriesToCsv();
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=categories_export.csv',
+    );
+    return res.status(200).send(csv);
+  }
+
+  @Post('import/csv')
+  @Permissions('category.create')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Import categories from CSV' })
+  async importCsv(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+    return this.categoryService.importCategoriesFromCsv(file.buffer);
   }
 }

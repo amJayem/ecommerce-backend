@@ -16,7 +16,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ProductModule,
     AuthModule,
     OrderModule,
-    OrderModule,
     CategoryModule,
     UsersModule,
     PermissionModule,

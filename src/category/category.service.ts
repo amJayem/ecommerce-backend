@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { stringify } from 'csv-stringify';
+import { parse } from 'csv-parse/sync';
 
 @Injectable()
 export class CategoryService {
@@ -341,5 +343,146 @@ export class CategoryService {
       }
       throw new Error('Failed to fetch category products');
     }
+  }
+
+  async exportCategoriesToCsv(): Promise<string> {
+    const categories = await this.prisma.category.findMany({
+      include: {
+        parent: {
+          select: { name: true },
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+
+    const data = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description || '',
+      icon: c.icon || '',
+      image: c.image || '',
+      parentId: c.parentId || '',
+      parentName: c.parent?.name || '',
+      isActive: c.isActive,
+      sortOrder: c.sortOrder,
+      metaTitle: c.metaTitle || '',
+      metaDescription: c.metaDescription || '',
+    }));
+
+    return new Promise((resolve, reject) => {
+      stringify(
+        data,
+        {
+          header: true,
+          columns: [
+            'id',
+            'name',
+            'slug',
+            'description',
+            'icon',
+            'image',
+            'parentId',
+            'parentName',
+            'isActive',
+            'sortOrder',
+            'metaTitle',
+            'metaDescription',
+          ],
+        },
+        (err, output) => {
+          if (err) reject(err);
+          resolve(output);
+        },
+      );
+    });
+  }
+
+  async importCategoriesFromCsv(buffer: Buffer) {
+    try {
+      const records = parse(buffer, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        cast: true,
+        bom: true,
+      }) as any[];
+
+      const results = {
+        created: 0,
+        updated: 0,
+        errors: [] as string[],
+      };
+
+      for (const record of records) {
+        try {
+          const categoryId = parseInt(record.id, 10);
+          const data = {
+            name: record.name,
+            slug: record.slug || this.generateSlugFromName(record.name),
+            description: record.description || '',
+            icon: record.icon || null,
+            image: record.image || null,
+            parentId: record.parentId ? parseInt(record.parentId, 10) : null,
+            isActive: String(record.isActive).toLowerCase() === 'true',
+            sortOrder: parseInt(record.sortOrder, 10) || 0,
+            metaTitle: record.metaTitle || null,
+            metaDescription: record.metaDescription || null,
+          };
+
+          if (!data.name) {
+            throw new Error('Category name is required');
+          }
+
+          if (!isNaN(categoryId)) {
+            await this.prisma.category.upsert({
+              where: { id: categoryId },
+              update: data,
+              create: { ...data, id: categoryId },
+            });
+            results.updated++;
+          } else {
+            // Find by slug if no ID
+            if (!data.slug) {
+              throw new Error('Slug is required for categories without an ID');
+            }
+            const existing = await this.prisma.category.findUnique({
+              where: { slug: data.slug },
+            });
+
+            if (existing) {
+              await this.prisma.category.update({
+                where: { id: existing.id },
+                data,
+              });
+              results.updated++;
+            } else {
+              await this.prisma.category.create({
+                data,
+              });
+              results.created++;
+            }
+          }
+        } catch (error) {
+          results.errors.push(
+            `Error at category ${record.name || 'unknown'}: ${error.message}`,
+          );
+        }
+      }
+
+      return results;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private generateSlugFromName(name: string): string {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 }
