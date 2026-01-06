@@ -1,0 +1,5 @@
+id,name,slug,description,icon,image,parentId,isActive,sortOrder,metaTitle,metaDescription
+1,Staples,staples,"Essential food items including rice, lentils, grains, and basic cooking ingredients",🌾,https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400,,true,1,Staples - Essential Food Items,"Shop for rice, lentils, grains and essential cooking ingredients"
+2,Vegetables,vegetables,Fresh vegetables and produce for healthy cooking,🥦,https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400,,true,2,Fresh Vegetables,Fresh vegetables and produce for healthy meals
+3,Spices & Seasonings,spices-seasonings,"Aromatic spices, herbs, and seasonings to enhance your cooking",🌶️,https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400,,true,3,Spices & Seasonings,Premium spices and seasonings for authentic flavors
+4,Cooking Oils,cooking-oils,High-quality cooking oils for various culinary needs,🧴,https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400,,true,4,Cooking Oils,Premium cooking oils for healthy and delicious meals
