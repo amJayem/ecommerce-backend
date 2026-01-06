@@ -10,6 +10,7 @@ import {
   HttpStatus,
   HttpCode,
   Get,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -48,8 +49,9 @@ export class CategoryAdminController {
     status: 403,
     description: 'Forbidden. Requires category.read permission.',
   })
-  findAll() {
-    return this.categoryService.findAll();
+  findAll(@Query('includeDeleted') includeDeleted?: string) {
+    // Admins see deleted items by default in this view
+    return this.categoryService.findAll(includeDeleted !== 'false');
   }
 
   @Get(':id')
@@ -63,8 +65,11 @@ export class CategoryAdminController {
     description: 'Forbidden. Requires category.read permission.',
   })
   @ApiResponse({ status: 404, description: 'Category not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    return this.categoryService.findOne(id, includeDeleted !== 'false');
   }
 
   @Get(':id/products')

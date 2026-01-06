@@ -12,6 +12,21 @@ export class PrismaService
   constructor() {
     super();
     this.extendedClient = this.extendWithSoftDelete();
+
+    // Explicitly define properties on the instance to shadow base PrismaClient properties
+    // This ensures that this.product and this.category always use the soft-delete extension
+    Object.defineProperties(this, {
+      product: {
+        get: () => (this.extendedClient as any).product,
+        enumerable: true,
+        configurable: true,
+      },
+      category: {
+        get: () => (this.extendedClient as any).category,
+        enumerable: true,
+        configurable: true,
+      },
+    });
   }
 
   private extendWithSoftDelete() {
@@ -24,14 +39,5 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
-  }
-
-  // Delegate common model access to the extended client
-  get product() {
-    return (this.extendedClient as any).product;
-  }
-
-  get category() {
-    return (this.extendedClient as any).category;
   }
 }

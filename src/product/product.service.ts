@@ -199,6 +199,7 @@ export class ProductService {
     search?: string;
     page?: number | string;
     limit?: number | string;
+    includeDeleted?: boolean | string;
   }) {
     try {
       const {
@@ -210,6 +211,7 @@ export class ProductService {
         search,
         page: rawPage,
         limit: rawLimit,
+        includeDeleted: rawIncludeDeleted,
       } = query || {};
 
       // Convert query parameters to proper types
@@ -236,6 +238,10 @@ export class ProductService {
         rawInStock !== undefined
           ? rawInStock === true || rawInStock === 'true'
           : undefined;
+      const includeDeleted =
+        rawIncludeDeleted !== undefined
+          ? rawIncludeDeleted === true || rawIncludeDeleted === 'true'
+          : false;
 
       // If categorySlug is provided, find the category ID
       let finalCategoryId = categoryId;
@@ -299,11 +305,12 @@ export class ProductService {
       const skip = (page - 1) * limit;
 
       const [products, total] = await Promise.all([
-        this.prisma.product.findMany({
+        (this.prisma.product as any).findMany({
           where,
           orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
           skip,
           take: limit,
+          includeDeleted,
           include: {
             category: {
               select: {
@@ -315,7 +322,7 @@ export class ProductService {
             },
           },
         }),
-        this.prisma.product.count({ where }),
+        (this.prisma.product as any).count({ where, includeDeleted }),
       ]);
 
       return {
@@ -348,10 +355,11 @@ export class ProductService {
     }
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, includeDeleted = false) {
     try {
-      const product = await this.prisma.product.findUnique({
+      const product = await (this.prisma.product as any).findUnique({
         where: { id },
+        includeDeleted,
         include: {
           category: {
             select: {
@@ -462,9 +470,10 @@ export class ProductService {
 
   async update(id: number, data: UpdateProductDto) {
     try {
-      // Check if product exists
-      const existingProduct = await this.prisma.product.findUnique({
+      // Check if product exists (including deleted for restoration)
+      const existingProduct = await (this.prisma.product as any).findUnique({
         where: { id },
+        includeDeleted: true,
       });
 
       if (!existingProduct) {
@@ -494,6 +503,21 @@ export class ProductService {
 
       if (updateData.tags && !Array.isArray(updateData.tags)) {
         updateData.tags = [];
+      }
+
+      // Restore logic
+      if (existingProduct.deletedAt) {
+        updateData.deletedAt = null;
+        updateData.isActive = true;
+
+        // If slug wasn't explicitly changed, restore the original
+        if (!data.slug) {
+          const restoredSlug = existingProduct.slug.replace(
+            /-deleted-\d+$/,
+            '',
+          );
+          updateData.slug = await this.ensureUniqueSlug(restoredSlug);
+        }
       }
 
       const product = await this.prisma.product.update({
@@ -923,6 +947,7 @@ export class ProductService {
           coverImage: record.coverImage || null,
           featured: String(record.featured).toLowerCase() === 'true',
           bestseller: String(record.bestseller).toLowerCase() === 'true',
+          deletedAt: null, // Restore if soft-deleted
         };
 
         // Upsert logic

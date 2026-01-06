@@ -62,7 +62,12 @@ export const softDeleteExtension = Prisma.defineExtension({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
-        if (['Product', 'Category'].includes(model)) {
+        const softArgs = { ...(args || {}) } as any;
+        const isSoftDeleteModel = ['product', 'category'].includes(
+          model.toLowerCase(),
+        );
+
+        if (isSoftDeleteModel) {
           if (
             [
               'findMany',
@@ -73,17 +78,30 @@ export const softDeleteExtension = Prisma.defineExtension({
               'groupBy',
             ].includes(operation)
           ) {
-            const softArgs = args as any;
-            softArgs.where = {
-              ...softArgs.where,
-              deletedAt: null,
-            };
+            const includeDeleted = softArgs.includeDeleted === true;
+            delete softArgs.includeDeleted; // Always clean up for Prisma
+
+            if (includeDeleted) {
+              return query(softArgs);
+            }
+
+            if (softArgs.where?.deletedAt === undefined) {
+              softArgs.where = {
+                ...softArgs.where,
+                deletedAt: null,
+              };
+            }
           }
         }
 
         // Apply filters to relations in include/select recursively
         const applyRelationalFilter = (obj: any) => {
           if (!obj || typeof obj !== 'object') return;
+
+          if (obj.includeDeleted === true) {
+            delete obj.includeDeleted;
+            return; // Don't filter relations if includeDeleted is set at this level
+          }
 
           for (const key in obj) {
             // Check if this key corresponds to a soft-delete model in relations
@@ -95,7 +113,7 @@ export const softDeleteExtension = Prisma.defineExtension({
                 'parent',
                 'products',
                 'items',
-              ].includes(key)
+              ].includes(key.toLowerCase())
             ) {
               if (obj[key] === true) {
                 obj[key] = { where: { deletedAt: null } };
@@ -106,14 +124,18 @@ export const softDeleteExtension = Prisma.defineExtension({
                 };
                 applyRelationalFilter(obj[key].include || obj[key].select);
               }
-            } else if (key === 'include' || key === 'select') {
+            } else if (
+              key === 'include' ||
+              key === 'select' ||
+              key === '_count'
+            ) {
               applyRelationalFilter(obj[key]);
             }
           }
         };
 
-        applyRelationalFilter(args);
-        return query(args);
+        applyRelationalFilter(softArgs);
+        return query(softArgs);
       },
     },
   },

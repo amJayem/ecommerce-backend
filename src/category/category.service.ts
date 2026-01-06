@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -15,28 +16,16 @@ export class CategoryService {
 
   async create(createCategoryDto: CreateCategoryDto) {
     try {
-      // Check if slug already exists
-      const existingCategory = await this.prisma.category.findUnique({
-        where: { slug: createCategoryDto.slug },
-      });
+      // Ensure unique slug
+      const baseSlug =
+        createCategoryDto.slug ||
+        this.generateSlugFromName(createCategoryDto.name);
+      const uniqueSlug = await this.ensureUniqueSlug(baseSlug);
 
-      if (existingCategory) {
-        throw new ConflictException('Category with this slug already exists');
-      }
-
-      // If parentId is provided, verify it exists
-      if (createCategoryDto.parentId) {
-        const parentCategory = await this.prisma.category.findUnique({
-          where: { id: createCategoryDto.parentId },
-        });
-
-        if (!parentCategory) {
-          throw new NotFoundException('Parent category not found');
-        }
-      }
+      const data = { ...createCategoryDto, slug: uniqueSlug };
 
       const category = await this.prisma.category.create({
-        data: createCategoryDto,
+        data,
         include: {
           parent: true,
           children: true,
@@ -58,10 +47,14 @@ export class CategoryService {
     }
   }
 
-  async findAll() {
+  async findAll(includeDeleted = false) {
     try {
-      const categories = await this.prisma.category.findMany({
-        where: { isActive: true },
+      const where: Prisma.CategoryWhereInput = includeDeleted
+        ? {}
+        : { isActive: true };
+      const categories = await (this.prisma.category as any).findMany({
+        where,
+        includeDeleted,
         include: {
           parent: true,
           children: true,
@@ -79,10 +72,11 @@ export class CategoryService {
     }
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, includeDeleted = false) {
     try {
-      const category = await this.prisma.category.findUnique({
+      const category = await (this.prisma.category as any).findUnique({
         where: { id },
+        includeDeleted,
         include: {
           parent: true,
           children: true,
@@ -157,9 +151,10 @@ export class CategoryService {
 
   async update(id: number, updateCategoryDto: UpdateCategoryDto) {
     try {
-      // Check if category exists
-      const existingCategory = await this.prisma.category.findUnique({
+      // Check if category exists (including deleted for restoration)
+      const existingCategory = await (this.prisma.category as any).findUnique({
         where: { id },
+        includeDeleted: true,
       });
 
       if (!existingCategory) {
@@ -197,9 +192,26 @@ export class CategoryService {
         }
       }
 
+      const data = { ...updateCategoryDto } as any;
+
+      // Restore logic
+      if (existingCategory.deletedAt) {
+        data.deletedAt = null;
+        data.isActive = true;
+
+        // If slug wasn't explicitly changed, restore the original
+        if (!data.slug) {
+          const restoredSlug = existingCategory.slug.replace(
+            /-deleted-\d+$/,
+            '',
+          );
+          data.slug = await this.ensureUniqueSlug(restoredSlug);
+        }
+      }
+
       const updatedCategory = await this.prisma.category.update({
         where: { id },
-        data: updateCategoryDto,
+        data,
         include: {
           parent: true,
           children: true,
@@ -428,6 +440,7 @@ export class CategoryService {
             sortOrder: parseInt(record.sortOrder, 10) || 0,
             metaTitle: record.metaTitle || null,
             metaDescription: record.metaDescription || null,
+            deletedAt: null, // Restore if soft-deleted
           };
 
           if (!data.name) {
@@ -523,6 +536,21 @@ export class CategoryService {
         },
       );
     });
+  }
+
+  private async ensureUniqueSlug(baseSlug: string): Promise<string> {
+    let candidate = baseSlug || 'category';
+    let suffix = 0;
+
+    while (true) {
+      const existing = await this.prisma.category.findFirst({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+      suffix += 1;
+      candidate = `${baseSlug}-${suffix}`;
+    }
   }
 
   private generateSlugFromName(name: string): string {

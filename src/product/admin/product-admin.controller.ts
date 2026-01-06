@@ -51,7 +51,12 @@ export class ProductAdminController {
     description: 'Forbidden. Requires product.read permission.',
   })
   findAll(@Query() query: any) {
-    return this.productService.findAll(query);
+    // Admins see deleted items by default in this view
+    const params = {
+      ...query,
+      includeDeleted: query.includeDeleted !== 'false',
+    };
+    return this.productService.findAll(params);
   }
 
   @Get(':id')
@@ -64,8 +69,11 @@ export class ProductAdminController {
     description: 'Forbidden. Requires product.read permission.',
   })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    return this.productService.findOne(id, includeDeleted !== 'false');
   }
 
   @Post()
