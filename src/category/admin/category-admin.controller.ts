@@ -86,8 +86,14 @@ export class CategoryAdminController {
     description: 'Forbidden. Requires product.read permission.',
   })
   @ApiResponse({ status: 404, description: 'Category not found' })
-  async getCategoryProducts(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryService.getCategoryProducts(id);
+  async getCategoryProducts(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    return this.categoryService.getCategoryProducts(
+      id,
+      includeDeleted !== 'false',
+    );
   }
 
   @Post()

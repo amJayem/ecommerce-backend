@@ -543,22 +543,10 @@ export class ProductService {
       // Check if product exists
       const existingProduct = await this.prisma.product.findUnique({
         where: { id },
-        include: {
-          _count: {
-            select: { orderItems: true },
-          },
-        },
       });
 
       if (!existingProduct) {
         throw new NotFoundException('Product not found');
-      }
-
-      // Check if product has orders
-      if (existingProduct._count.orderItems > 0) {
-        throw new ConflictException(
-          'Cannot delete product with existing orders',
-        );
       }
 
       await this.prisma.product.delete({ where: { id } });

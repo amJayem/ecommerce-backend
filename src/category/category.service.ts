@@ -81,7 +81,7 @@ export class CategoryService {
           parent: true,
           children: true,
           products: {
-            where: { isActive: true },
+            where: includeDeleted ? {} : { isActive: true },
             select: {
               id: true,
               name: true,
@@ -89,6 +89,8 @@ export class CategoryService {
               price: true,
               coverImage: true,
               status: true,
+              isActive: true, // Added for visibility
+              deletedAt: true, // Added for visibility
             },
           },
           _count: {
@@ -309,11 +311,12 @@ export class CategoryService {
     }
   }
 
-  async getCategoryProducts(id: number) {
+  async getCategoryProducts(id: number, includeDeleted = false) {
     try {
       // First verify the category exists
-      const category = await this.prisma.category.findUnique({
+      const category = await (this.prisma.category as any).findUnique({
         where: { id },
+        includeDeleted,
       });
 
       if (!category) {
@@ -321,11 +324,12 @@ export class CategoryService {
       }
 
       // Get products for this category
-      const products = await this.prisma.product.findMany({
+      const products = await (this.prisma.product as any).findMany({
         where: {
           categoryId: id,
-          isActive: true,
+          ...(includeDeleted ? {} : { isActive: true }),
         },
+        includeDeleted,
         select: {
           id: true,
           name: true,
