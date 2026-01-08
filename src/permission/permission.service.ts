@@ -27,6 +27,9 @@ export class PermissionService {
       { name: 'user.approve', category: 'user' },
       { name: 'user.manage', category: 'user' },
       { name: 'admin.action', category: 'admin' },
+      { name: 'analytics.orders.read', category: 'analytics' },
+      { name: 'analytics.sales.read', category: 'analytics' },
+      { name: 'analytics.inventory.read', category: 'analytics' },
     ];
   }
 

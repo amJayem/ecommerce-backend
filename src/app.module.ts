@@ -8,6 +8,7 @@ import { OrderModule } from './order/order.module';
 import { CategoryModule } from './category/category.module';
 import { UsersModule } from './users/users.module';
 import { PermissionModule } from './permission/permission.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -19,6 +20,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     CategoryModule,
     UsersModule,
     PermissionModule,
+    AnalyticsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
       {
