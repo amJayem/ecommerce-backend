@@ -12,11 +12,21 @@ import {
   Query,
   Request,
   ForbiddenException,
+  UsePipes,
+  ValidationPipe,
+  SetMetadata,
 } from '@nestjs/common';
 import { OrderService } from '../order.service';
 import { CreateOrderDto, OrderStatus } from '../dto/create-order.dto';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import {
+  ApiPropertyOptional,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiProperty,
+} from '@nestjs/swagger';
+import { IsOptional, IsEnum, IsInt, Min, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class UserOrderQueryDto {
@@ -39,20 +49,31 @@ class UserOrderQueryDto {
   @Min(1)
   limit?: number = 20;
 }
+
+class GuestOrderLookupDto {
+  @ApiProperty({ description: 'Order Number (ID)', example: 202601111 })
+  @IsInt()
+  id: number;
+
+  @ApiProperty({
+    description: 'Guest Email used during checkout',
+    example: 'guest@example.com',
+  })
+  @IsString()
+  email: string;
+}
+
 import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { GuestOrderGuard } from '../guard/guest-order.guard';
+import { Public } from '../../auth/decorator/public.decorator';
 
 @ApiTags('Orders')
 @Controller('orders')
 export class OrderPublicController {
   constructor(private readonly orderService: OrderService) {}
 
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new order (public or authenticated)' })
@@ -62,6 +83,22 @@ export class OrderPublicController {
       createOrderDto.userId = req.user.id;
     }
     return this.orderService.createOrder(createOrderDto);
+  }
+
+  @SetMetadata('isPublic', true)
+  @Get('thank-you')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get order summary for Thank You page using confirmation token',
+  })
+  @ApiResponse({ status: 200, description: 'Safe order summary returned' })
+  @ApiResponse({ status: 403, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async getThankYouSummary(
+    @Query('orderNumber', ParseIntPipe) orderNumber: number,
+    @Query('token') token: string,
+  ) {
+    return this.orderService.getSummaryByConfirmationToken(orderNumber, token);
   }
 
   @Get('my-orders')
@@ -132,5 +169,32 @@ export class OrderPublicController {
     }
 
     return this.orderService.updateOrderStatus(id, OrderStatus.CANCELLED);
+  }
+
+  @Post('guest-lookup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lookup a guest order and receive a temporary token',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token returned for valid credentials',
+  })
+  @ApiResponse({ status: 403, description: 'Invalid order number or email' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async guestLookup(@Body() lookupDto: GuestOrderLookupDto) {
+    return this.orderService.lookUpGuestOrder(lookupDto.id, lookupDto.email);
+  }
+
+  @Get('guest/:id')
+  @UseGuards(GuestOrderGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'View guest order details using temporary token' })
+  @ApiResponse({ status: 200, description: 'Order details returned' })
+  @ApiResponse({ status: 401, description: 'Token missing or invalid' })
+  @ApiResponse({ status: 403, description: 'Token not valid for this order' })
+  async findOneGuest(@Param('id', ParseIntPipe) id: number) {
+    return this.orderService.findOne(id);
   }
 }

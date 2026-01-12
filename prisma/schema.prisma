@@ -99,6 +99,7 @@ model Order {
   id                   Int           @id
   userId               Int?          // Optional for anonymous users
   user                 User?         @relation(fields: [userId], references: [id])
+  guestEmail           String?       // For guest users lookup
   status               OrderStatus   @default(PENDING)
   totalAmount          Float
   subtotal             Float
@@ -115,6 +116,11 @@ model Order {
   actualDelivery       DateTime?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+
+  // Confirmation token for Thank You page (hashed)
+  confirmationTokenHash      String?
+  confirmationTokenExpiresAt DateTime?
+
   items                OrderItem[]
 
   @@index([userId])

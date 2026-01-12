@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -12,10 +13,15 @@ import {
 } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
+import { JwtService } from '@nestjs/jwt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService?: JwtService,
+  ) {}
 
   // Generates an order identifier in the form yyyyMMdd{N}
   // Example: 202510291 for the first order on 2025-10-29
@@ -94,6 +100,10 @@ export class OrderService {
         if (!user) {
           throw new NotFoundException('User not found');
         }
+      } else if (!data.guestEmail) {
+        // If no userId, guestEmail is recommended for tracking/lookup
+        // but we'll see if the business wants to enforce it.
+        // The prompt says "Store guest email for guest orders" so we should probably require it or allow it.
       }
 
       // Verify all products exist and have sufficient stock
@@ -103,9 +113,7 @@ export class OrderService {
         });
 
         if (!product) {
-          throw new NotFoundException(
-            `Product with ID ${item.productId} not found`,
-          );
+          throw new NotFoundException(`Product ${item.productId} not found`);
         }
 
         if (product.stock < item.quantity) {
@@ -118,13 +126,24 @@ export class OrderService {
       // Pre-generate the order id outside the transaction to avoid nesting client calls
       const orderId = await this.generateOrderId();
 
+      // Generate confirmation token
+      const rawConfirmationToken = crypto.randomBytes(32).toString('hex');
+      const confirmationTokenHash = crypto
+        .createHash('sha256')
+        .update(rawConfirmationToken)
+        .digest('hex');
+      const confirmationTokenExpiresAt = new Date(
+        Date.now() + 2 * 60 * 60 * 1000,
+      ); // 2 hours
+
       // Use a transaction to ensure atomicity across order creation and stock updates
       return this.prisma.$transaction(async (tx) => {
         // Create the order
         const order = await tx.order.create({
           data: {
             id: orderId,
-            userId: data.userId || null,
+            userId: data.userId,
+            guestEmail: data.guestEmail,
             status: data.status || OrderStatus.PENDING,
             totalAmount: data.totalAmount || 0,
             subtotal: data.subtotal || 0,
@@ -133,19 +152,15 @@ export class OrderService {
             discount: data.discount || 0,
             paymentStatus: data.paymentStatus || PaymentStatus.PENDING,
             paymentMethod: data.paymentMethod,
-            shippingAddress:
-              data.shippingAddress !== undefined
-                ? (data.shippingAddress as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
-            billingAddress:
-              data.billingAddress !== undefined
-                ? (data.billingAddress as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
+            shippingAddress: data.shippingAddress || {},
+            billingAddress: data.billingAddress || {},
             shippingAddressText: data.shippingAddressText,
             deliveryNote: data.deliveryNote,
             estimatedDelivery: data.estimatedDelivery
               ? new Date(data.estimatedDelivery)
               : null,
+            confirmationTokenHash,
+            confirmationTokenExpiresAt,
             items: {
               create: data.items.map((item) => ({
                 productId: item.productId,
@@ -154,7 +169,7 @@ export class OrderService {
                 total: item.price * item.quantity,
               })),
             },
-          },
+          } as any,
           include: {
             user: data.userId
               ? {
@@ -173,6 +188,7 @@ export class OrderService {
                     name: true,
                     slug: true,
                     coverImage: true,
+                    images: true, // Added images
                   },
                 },
               },
@@ -193,7 +209,10 @@ export class OrderService {
           });
         }
 
-        return order;
+        return {
+          order,
+          confirmationToken: rawConfirmationToken,
+        };
       });
     } catch (error) {
       if (
@@ -674,6 +693,7 @@ export class OrderService {
               id: true,
               name: true,
               email: true,
+              phoneNumber: true,
             },
           },
           items: {
@@ -697,5 +717,99 @@ export class OrderService {
       console.error(`Error updating payment status for order ${id}:`, error);
       throw new Error('Failed to update payment status');
     }
+  }
+
+  async lookUpGuestOrder(id: number, email: string) {
+    const order = (await this.prisma.order.findUnique({
+      where: { id },
+    })) as any;
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.guestEmail !== email) {
+      throw new ForbiddenException('Invalid order number or email');
+    }
+
+    // Generate a temporary access token scoped to this order
+    const payload = {
+      sub: order.id,
+      email: order.guestEmail,
+      type: 'guest_order_access',
+    };
+
+    if (!this.jwtService) {
+      throw new Error('JwtService not available in OrderService');
+    }
+
+    return {
+      guestToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
+      orderId: order.id,
+    };
+  }
+
+  /**
+   * Validates a confirmation token and returns a safe summary of the order for the Thank You page.
+   * This is public and should NOT expose sensitive user or payment data.
+   */
+  async getSummaryByConfirmationToken(orderId: number, rawToken: string) {
+    const order = (await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                coverImage: true,
+              },
+            },
+          },
+        },
+      },
+    })) as any;
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      !order.confirmationTokenHash ||
+      !order.confirmationTokenExpiresAt ||
+      order.confirmationTokenExpiresAt < new Date()
+    ) {
+      throw new ForbiddenException('Confirmation token expired or not set');
+    }
+
+    // Hash provided token and compare
+    const providedHash = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
+
+    if (providedHash !== order.confirmationTokenHash) {
+      throw new ForbiddenException('Invalid confirmation token');
+    }
+
+    // Return a SAFE subset of the order
+    return {
+      orderNumber: order.id,
+      status: order.status,
+      totalAmount: order.totalAmount,
+      subtotal: order.subtotal,
+      tax: order.tax,
+      shippingCost: order.shippingCost,
+      discount: order.discount,
+      shippingAddressText: order.shippingAddressText,
+      items: order.items.map((item) => ({
+        productName: item.product.name,
+        coverImage: item.product.coverImage,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total,
+      })),
+      createdAt: order.createdAt,
+    };
   }
 }

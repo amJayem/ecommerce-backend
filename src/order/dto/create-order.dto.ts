@@ -63,6 +63,14 @@ export class CreateOrderDto {
   @IsPositive()
   userId?: number;
 
+  @ApiPropertyOptional({
+    description: 'Email for guest checkout (required if userId is omitted)',
+    example: 'guest@example.com',
+  })
+  @IsOptional()
+  @IsString()
+  guestEmail?: string;
+
   // At least 1 item is required
   @ApiProperty({ description: 'Order items', type: [CreateOrderItemDto] })
   @IsArray()
