@@ -17,13 +17,23 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
-import { CurrentUser } from '../../auth/decorator/current-user.decorator';
+import {
+  CurrentUser,
+  JwtUserPayload,
+} from '../../auth/decorator/current-user.decorator';
 import { Permissions } from '../../auth/decorator/permissions.decorator';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
 import { PermissionGuard } from '../../auth/guard/permission.guard';
 import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { PermissionService } from '../../permission/permission.service';
 import { UsersService } from '../users.service';
+
+interface SyncPermissionResult {
+  message: string;
+  syncedCount: number;
+  permissions: string[];
+  automaticallyApproved: boolean;
+}
 
 @ApiTags('Admin Users')
 @ApiBearerAuth('access-token')
@@ -66,7 +76,7 @@ export class UsersAdminController {
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
   @Permissions('user.approve')
-  approve(@Param('id') id: string, @CurrentUser() admin: any) {
+  approve(@Param('id') id: string, @CurrentUser() admin: JwtUserPayload) {
     return this.usersService.approveUser(+id, admin.id);
   }
 
@@ -79,7 +89,7 @@ export class UsersAdminController {
     description: 'Forbidden. Requires user.approve permission.',
   })
   @Permissions('user.approve') // Rejection usually same level as approval
-  reject(@Param('id') id: string, @CurrentUser() admin: any) {
+  reject(@Param('id') id: string, @CurrentUser() admin: JwtUserPayload) {
     return this.usersService.rejectUser(+id, admin.id);
   }
 
@@ -92,7 +102,7 @@ export class UsersAdminController {
     description: 'Forbidden. Requires user.manage permission.',
   })
   @Permissions('user.manage') // Suspension might be higher level
-  suspend(@Param('id') id: string, @CurrentUser() admin: any) {
+  suspend(@Param('id') id: string, @CurrentUser() admin: JwtUserPayload) {
     return this.usersService.suspendUser(+id, admin.id);
   }
 
@@ -141,10 +151,14 @@ export class UsersAdminController {
   async updateAccess(
     @Param('id') id: string,
     @Body() dto: { role?: string; permissions?: string[] },
-    @CurrentUser() admin: any,
+    @CurrentUser() admin: JwtUserPayload,
   ) {
     const userId = +id;
-    const results: any = { message: 'Access updated successfully' };
+    const results: {
+      message: string;
+      roleUpdate?: any;
+      permissionSync?: SyncPermissionResult;
+    } = { message: 'Access updated successfully' };
 
     // 1. Update role if provided
     if (dto.role) {

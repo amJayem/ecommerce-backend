@@ -3,24 +3,51 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import {
-  CreateOrderDto,
-  OrderStatus,
-  PaymentStatus,
-} from './dto/create-order.dto';
+import { Prisma, OrderStatus, PaymentStatus } from '@prisma/client';
+import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { UsersService } from '../users/users.service';
+
+/**
+ * Internal interface for Order objects with metadata fields.
+ * Used to resolve type sync issues with guestEmail and confirmation tokens.
+ */
+interface InternalOrder {
+  id: number;
+  guestEmail: string | null;
+  status: OrderStatus;
+  totalAmount: number;
+  subtotal: number;
+  tax: number;
+  shippingCost: number;
+  discount: number;
+  shippingAddressText: string | null;
+  confirmationTokenHash: string | null;
+  confirmationTokenExpiresAt: Date | null;
+  items: Array<{
+    product: {
+      name: string;
+      coverImage: string | null;
+    };
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
+  createdAt: Date;
+}
 
 @Injectable()
 export class OrderService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService?: JwtService,
+    private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
   ) {}
 
   // Generates an order identifier in the form yyyyMMdd{N}
@@ -123,6 +150,25 @@ export class OrderService {
         }
       }
 
+      // 1. Fetch source addresses to create snapshots
+      const sourceShipping = await this.prisma.address.findUnique({
+        where: { id: data.shippingAddressId },
+      });
+      if (!sourceShipping) {
+        throw new BadRequestException('Shipping address not found');
+      }
+
+      let sourceBilling = sourceShipping;
+      if (data.billingAddressId) {
+        const foundBilling = await this.prisma.address.findUnique({
+          where: { id: data.billingAddressId },
+        });
+        if (!foundBilling) {
+          throw new BadRequestException('Billing address not found');
+        }
+        sourceBilling = foundBilling;
+      }
+
       // Pre-generate the order id outside the transaction to avoid nesting client calls
       const orderId = await this.generateOrderId();
 
@@ -138,7 +184,42 @@ export class OrderService {
 
       // Use a transaction to ensure atomicity across order creation and stock updates
       return this.prisma.$transaction(async (tx) => {
-        // Create the order
+        // 2. Create address snapshots
+        const shippingSnapshot = await tx.address.create({
+          data: {
+            firstName: sourceShipping.firstName,
+            lastName: sourceShipping.lastName,
+            street: sourceShipping.street,
+            city: sourceShipping.city,
+            state: sourceShipping.state,
+            zipCode: sourceShipping.zipCode,
+            country: sourceShipping.country,
+            phone: sourceShipping.phone,
+            addressType: 'order_snapshot',
+            isDefault: false,
+          },
+        });
+
+        let billingSnapshotId = shippingSnapshot.id;
+        if (data.billingAddressId) {
+          const billingSnapshot = await tx.address.create({
+            data: {
+              firstName: sourceBilling.firstName,
+              lastName: sourceBilling.lastName,
+              street: sourceBilling.street,
+              city: sourceBilling.city,
+              state: sourceBilling.state,
+              zipCode: sourceBilling.zipCode,
+              country: sourceBilling.country,
+              phone: sourceBilling.phone,
+              addressType: 'order_snapshot',
+              isDefault: false,
+            },
+          });
+          billingSnapshotId = billingSnapshot.id;
+        }
+
+        // 3. Create the order
         const order = await tx.order.create({
           data: {
             id: orderId,
@@ -152,8 +233,8 @@ export class OrderService {
             discount: data.discount || 0,
             paymentStatus: data.paymentStatus || PaymentStatus.PENDING,
             paymentMethod: data.paymentMethod,
-            shippingAddress: data.shippingAddress || {},
-            billingAddress: data.billingAddress || {},
+            shippingAddressId: shippingSnapshot.id,
+            billingAddressId: billingSnapshotId,
             shippingAddressText: data.shippingAddressText,
             deliveryNote: data.deliveryNote,
             estimatedDelivery: data.estimatedDelivery
@@ -169,7 +250,7 @@ export class OrderService {
                 total: item.price * item.quantity,
               })),
             },
-          } as any,
+          },
           include: {
             user: data.userId
               ? {
@@ -375,6 +456,8 @@ export class OrderService {
               phoneNumber: true,
             },
           },
+          shippingAddress: true,
+          billingAddress: true,
           items: {
             include: {
               product: {
@@ -450,18 +533,7 @@ export class OrderService {
       if (updateOrderDto.paymentMethod !== undefined) {
         updatedData.paymentMethod = updateOrderDto.paymentMethod;
       }
-      if (updateOrderDto.shippingAddress !== undefined) {
-        updatedData.shippingAddress =
-          updateOrderDto.shippingAddress !== undefined
-            ? (updateOrderDto.shippingAddress as Prisma.InputJsonValue)
-            : Prisma.JsonNull;
-      }
-      if (updateOrderDto.billingAddress !== undefined) {
-        updatedData.billingAddress =
-          updateOrderDto.billingAddress !== undefined
-            ? (updateOrderDto.billingAddress as Prisma.InputJsonValue)
-            : Prisma.JsonNull;
-      }
+      // Note: Address updates now handled separately via updateOrderAddress method
       if (updateOrderDto.shippingAddressText !== undefined) {
         updatedData.shippingAddressText = updateOrderDto.shippingAddressText;
       }
@@ -565,6 +637,83 @@ export class OrderService {
     }
   }
 
+  async updateOrderAddress(
+    orderId: number,
+    userId: number,
+    addressId: number,
+    addressType: 'shipping' | 'billing' = 'shipping',
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Authorization check
+    if (order.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this order',
+      );
+    }
+
+    // Status check: only PENDING or CONFIRMED
+    if (
+      order.status !== OrderStatus.PENDING &&
+      order.status !== OrderStatus.CONFIRMED
+    ) {
+      throw new ConflictException(
+        'Order address can only be updated for PENDING or CONFIRMED orders',
+      );
+    }
+
+    // Fetch the new source address
+    const source = await this.prisma.address.findUnique({
+      where: { id: addressId },
+    });
+    if (!source) {
+      throw new BadRequestException('Source address not found');
+    }
+
+    // Create a new snapshot
+    const snapshot = await this.prisma.address.create({
+      data: {
+        firstName: source.firstName,
+        lastName: source.lastName,
+        street: source.street,
+        city: source.city,
+        state: source.state,
+        zipCode: source.zipCode,
+        country: source.country,
+        phone: source.phone,
+        addressType: 'order_snapshot',
+        isDefault: false,
+      },
+    });
+
+    // Update the order with the new snapshot ID
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    const updateData: any = {};
+    if (addressType === 'shipping') {
+      updateData.shippingAddressId = snapshot.id;
+    } else {
+      updateData.billingAddressId = snapshot.id;
+    }
+
+    const result = await this.prisma.order.update({
+      where: { id: orderId },
+      data: updateData,
+      include: {
+        shippingAddress: true,
+        billingAddress: true,
+      },
+    });
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
+    return result;
+  }
+
   async getUserOrders(
     userId: number,
     query?: {
@@ -589,6 +738,8 @@ export class OrderService {
         this.prisma.order.findMany({
           where,
           include: {
+            shippingAddress: true,
+            billingAddress: true,
             items: {
               include: {
                 product: {
@@ -722,7 +873,7 @@ export class OrderService {
   async lookUpGuestOrder(id: number, email: string) {
     const order = (await this.prisma.order.findUnique({
       where: { id },
-    })) as any;
+    })) as unknown as InternalOrder;
 
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -768,7 +919,7 @@ export class OrderService {
           },
         },
       },
-    })) as any;
+    })) as unknown as InternalOrder;
 
     if (!order) {
       throw new NotFoundException('Order not found');

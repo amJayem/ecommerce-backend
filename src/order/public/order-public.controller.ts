@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Body,
   Param,
   Delete,
@@ -10,10 +11,7 @@ import {
   HttpStatus,
   HttpCode,
   Query,
-  Request,
   ForbiddenException,
-  UsePipes,
-  ValidationPipe,
   SetMetadata,
 } from '@nestjs/common';
 import { OrderService } from '../order.service';
@@ -67,6 +65,10 @@ import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
 import { ApprovalGuard } from '../../auth/guard/approval.guard';
 import { GuestOrderGuard } from '../guard/guest-order.guard';
 import { Public } from '../../auth/decorator/public.decorator';
+import {
+  CurrentUser,
+  JwtUserPayload,
+} from '../../auth/decorator/current-user.decorator';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -78,9 +80,12 @@ export class OrderPublicController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new order (public or authenticated)' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
-  create(@Body() createOrderDto: CreateOrderDto, @Request() req: any) {
-    if (req.user && req.user.id) {
-      createOrderDto.userId = req.user.id;
+  create(
+    @Body() createOrderDto: CreateOrderDto,
+    @CurrentUser() user?: JwtUserPayload,
+  ) {
+    if (user && user.id) {
+      createOrderDto.userId = user.id;
     }
     return this.orderService.createOrder(createOrderDto);
   }
@@ -107,8 +112,11 @@ export class OrderPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get current user orders' })
   @ApiResponse({ status: 200, description: 'User orders returned' })
-  getMyOrders(@Request() req: any, @Query() query: UserOrderQueryDto) {
-    return this.orderService.getUserOrders(req.user.id, query);
+  getMyOrders(
+    @CurrentUser() user: JwtUserPayload,
+    @Query() query: UserOrderQueryDto,
+  ) {
+    return this.orderService.getUserOrders(user.id, query);
   }
 
   @Get(':id')
@@ -122,14 +130,17 @@ export class OrderPublicController {
     description: 'Forbidden. Can only view own orders.',
   })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
     const order = await this.orderService.findOne(id);
 
     // Check if user is the owner
     if (
-      order.userId !== req.user.id &&
-      req.user.role !== 'admin' &&
-      req.user.role !== 'super_admin'
+      order.userId !== user.id &&
+      user.role !== 'admin' &&
+      user.role !== 'super_admin'
     ) {
       throw new ForbiddenException(
         'You do not have permission to view this order',
@@ -150,14 +161,17 @@ export class OrderPublicController {
     description: 'Forbidden. Can only cancel own orders.',
   })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
     const order = await this.orderService.findOne(id);
 
     // Check if user is the owner
     if (
-      order.userId !== req.user.id &&
-      req.user.role !== 'admin' &&
-      req.user.role !== 'super_admin'
+      order.userId !== user.id &&
+      user.role !== 'admin' &&
+      user.role !== 'super_admin'
     ) {
       throw new ForbiddenException(
         'You do not have permission to cancel this order',
@@ -169,6 +183,26 @@ export class OrderPublicController {
     }
 
     return this.orderService.updateOrderStatus(id, OrderStatus.CANCELLED);
+  }
+
+  @Put(':id/address')
+  @UseGuards(JwtAuthGuard, ApprovalGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update shipping/billing address of an order' })
+  @ApiResponse({ status: 200, description: 'Order address updated' })
+  async updateOrderAddress(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('addressId', ParseIntPipe) addressId: number,
+    @Body('addressType') addressType: 'shipping' | 'billing' = 'shipping',
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    return this.orderService.updateOrderAddress(
+      id,
+      user.id,
+      addressId,
+      addressType,
+    );
   }
 
   @Post('guest-lookup')

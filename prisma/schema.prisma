@@ -22,7 +22,17 @@ model User {
   avatarUrl    String?
   isVerified   Boolean    @default(false)
   phoneNumber  String?
+  
+  // New profile fields
+  firstName    String?
+  lastName     String?
+  phone        String?
+  
+  // Relations
   orders       Order[]
+  addresses    Address[]
+  notificationPreference NotificationPreference?
+  
   permissions  String[]   @default([])
 
   @@index([refreshToken])
@@ -104,14 +114,19 @@ model Order {
   totalAmount          Float
   subtotal             Float
   tax                  Float         @default(0)
-  shippingCost         Float         @default(0) // renamed from shipping
+  shippingCost         Float         @default(0)
   discount             Float         @default(0)
   paymentStatus        PaymentStatus @default(PENDING)
   paymentMethod        String?
-  shippingAddress      Json          // accepts structured shipping info
-  billingAddress       Json?
+  
+  // Address relations (foreign keys to Address snapshots)
+  shippingAddressId    Int
+  shippingAddress      Address       @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddressId     Int?
+  billingAddress       Address?      @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  
   shippingAddressText  String?
-  deliveryNote         String?       // renamed from deliveryInstructions
+  deliveryNote         String?
   estimatedDelivery    DateTime?
   actualDelivery       DateTime?
   createdAt            DateTime      @default(now())
@@ -126,6 +141,8 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([paymentStatus])
+  @@index([shippingAddressId])
+  @@index([billingAddressId])
 }
 
 model OrderItem {
@@ -155,4 +172,50 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+}
+
+model Address {
+  id          Int      @id @default(autoincrement())
+  
+  // User relation (NULL for order snapshots)
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Address fields
+  firstName   String
+  lastName    String
+  street      String
+  city        String
+  state       String
+  zipCode     String
+  country     String
+  phone       String
+  
+  // Metadata
+  addressType String   // "saved" | "order_snapshot"
+  addressName String?  // "Home", "Office" (for saved addresses)
+  isDefault   Boolean  @default(false)  // Only for saved addresses
+  
+  // Relations to orders
+  ordersAsShipping Order[] @relation("ShippingAddress")
+  ordersAsBilling  Order[] @relation("BillingAddress")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId, addressType])
+  @@index([addressType])
+}
+
+model NotificationPreference {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  orderUpdates Boolean  @default(true)
+  newsletters  Boolean  @default(false)
+  stockAlerts  Boolean  @default(false)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
