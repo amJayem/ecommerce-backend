@@ -10,6 +10,20 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
 
+interface CategoryCsvRecord {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  icon?: string;
+  image?: string;
+  parentId?: string;
+  isActive?: string;
+  sortOrder?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+}
+
 @Injectable()
 export class CategoryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -422,7 +436,7 @@ export class CategoryService {
         trim: true,
         cast: true,
         bom: true,
-      }) as any[];
+      }) as CategoryCsvRecord[];
 
       const results = {
         created: 0,

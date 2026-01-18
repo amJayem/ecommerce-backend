@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { softDeleteExtension } from './prisma-soft-delete.extension';
 
 @Injectable()
@@ -7,26 +7,20 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  readonly extendedClient: ReturnType<typeof this.extendWithSoftDelete>;
+  readonly extendedClient: any;
+
+  // Shadowed properties from base PrismaClient
+  get product(): Prisma.ProductDelegate {
+    return (this.extendedClient as any).product;
+  }
+
+  get category(): Prisma.CategoryDelegate {
+    return (this.extendedClient as any).category;
+  }
 
   constructor() {
     super();
     this.extendedClient = this.extendWithSoftDelete();
-
-    // Explicitly define properties on the instance to shadow base PrismaClient properties
-    // This ensures that this.product and this.category always use the soft-delete extension
-    Object.defineProperties(this, {
-      product: {
-        get: () => (this.extendedClient as any).product,
-        enumerable: true,
-        configurable: true,
-      },
-      category: {
-        get: () => (this.extendedClient as any).category,
-        enumerable: true,
-        configurable: true,
-      },
-    });
   }
 
   private extendWithSoftDelete() {

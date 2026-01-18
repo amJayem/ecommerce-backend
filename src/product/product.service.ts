@@ -8,11 +8,35 @@ import {
 import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
-import { Readable } from 'stream';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { SearchProductDto, SortOption } from './dto/search-product.dto';
+
+interface ProductCsvRecord {
+  id: string;
+  name: string;
+  slug?: string;
+  sku?: string;
+  brand?: string;
+  price: string;
+  originalPrice?: string;
+  discount?: string;
+  stock: string;
+  unit?: string;
+  weight?: string;
+  categoryId?: string;
+  status?: string;
+  isActive?: string;
+  images?: string;
+  tags?: string;
+  shortDescription?: string;
+  description?: string;
+  detailedDescription?: string;
+  coverImage?: string;
+  featured?: string;
+  bestseller?: string;
+}
 
 @Injectable()
 export class ProductService {
@@ -893,7 +917,7 @@ export class ProductService {
       trim: true,
       cast: true,
       bom: true, // Handle Byte Order Mark
-    }) as any[];
+    }) as ProductCsvRecord[];
 
     console.log('Parsed records count:', records.length);
     if (records.length > 0) {
@@ -918,7 +942,7 @@ export class ProductService {
           originalPrice: record.originalPrice
             ? parseFloat(record.originalPrice)
             : null,
-          discount: parseFloat(record.discount) || 0,
+          discount: parseFloat(record.discount || '0') || 0,
           stock: parseInt(record.stock, 10) || 0,
           unit: record.unit || 'piece',
           weight: record.weight ? parseFloat(record.weight) : null,
@@ -966,7 +990,7 @@ export class ProductService {
             results.created++;
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(
           `Error at row ${record.name || 'unknown'}: ${error.message}`,
         );

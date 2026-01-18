@@ -14,21 +14,25 @@ import {
 } from 'class-validator';
 
 // Allowed order statuses
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED',
-}
+// export enum OrderStatus {
+//   PENDING = 'PENDING',
+//   CONFIRMED = 'CONFIRMED',
+//   SHIPPED = 'SHIPPED',
+//   DELIVERED = 'DELIVERED',
+//   CANCELLED = 'CANCELLED',
+// }
 
-// Payment status tracking
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+// // Payment status tracking
+// export enum PaymentStatus {
+//   PENDING = 'PENDING',
+//   PAID = 'PAID',
+//   FAILED = 'FAILED',
+//   REFUNDED = 'REFUNDED',
+// }
+
+import { OrderStatus, PaymentStatus } from '@prisma/client';
+
+export { OrderStatus, PaymentStatus };
 
 // A single product in the order
 class CreateOrderItemDto {
@@ -135,31 +139,22 @@ export class CreateOrderDto {
   @IsString()
   paymentMethod?: string;
 
-  /**
-   * Structured delivery address, stored as JSON.
-   * Example:
-   * {
-   *   name: string, phone: string, address1: string, address2?: string,
-   *   city: string, postalCode: string, note?: string
-   * }
-   */
+  // Address IDs - linking to user's saved addresses or creating snapshots
+  @ApiProperty({
+    description: 'ID of the shipping address (from Saved Addresses)',
+    example: 1,
+  })
+  @IsNumber()
+  shippingAddressId: number;
+
   @ApiPropertyOptional({
-    description: 'Structured shipping address (stored as JSON)',
-    example: {
-      name: 'Md Anik',
-      phone: '01712345678',
-      address1: 'House 123, Road 45',
-      address2: 'Apt 6B',
-      city: 'Dhaka',
-      postalCode: '1207',
-      note: 'Call before delivery',
-    },
-    type: 'object',
-    additionalProperties: true,
+    description:
+      'ID of the billing address (from Saved Addresses, defaults to shipping if omitted)',
+    example: 2,
   })
   @IsOptional()
-  @IsObject()
-  shippingAddress?: any;
+  @IsNumber()
+  billingAddressId?: number;
 
   // Plain-text version of the shipping address (for labels/quick display)
   @ApiPropertyOptional({
@@ -169,26 +164,6 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   shippingAddressText?: string;
-
-  /**
-   * Structured billing address, stored as JSON (same as shipping by default).
-   * Keys: name, phone, address1, address2, city, postalCode, etc.
-   */
-  @ApiPropertyOptional({
-    description: 'Structured billing address (stored as JSON)',
-    example: {
-      name: 'Md Anik',
-      phone: '01712345678',
-      address1: 'House 123, Road 45',
-      city: 'Dhaka',
-      postalCode: '1207',
-    },
-    type: 'object',
-    additionalProperties: true,
-  })
-  @IsOptional()
-  @IsObject()
-  billingAddress?: any;
 
   // Special note for delivery (e.g., "Call before delivery"); plain text
   @ApiPropertyOptional({

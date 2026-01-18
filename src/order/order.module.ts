@@ -6,11 +6,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PermissionModule } from '../permission/permission.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     PrismaModule,
     PermissionModule,
+    UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({

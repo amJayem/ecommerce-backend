@@ -6,13 +6,22 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
+
+interface GuestTokenPayload {
+  type: string;
+  sub: number;
+  email: string;
+}
 
 @Injectable()
 export class GuestOrderGuard implements CanActivate {
   constructor(private readonly jwtService: JwtService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { guest?: any }>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader) {
@@ -26,7 +35,9 @@ export class GuestOrderGuard implements CanActivate {
     }
 
     try {
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify(
+        token,
+      ) as unknown as GuestTokenPayload;
 
       if (payload.type !== 'guest_order_access') {
         throw new ForbiddenException('Invalid token type');

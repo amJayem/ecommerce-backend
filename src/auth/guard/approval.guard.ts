@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ForbiddenException,
+} from '@nestjs/common';
 
 @Injectable()
 export class ApprovalGuard implements CanActivate {
@@ -13,9 +18,12 @@ export class ApprovalGuard implements CanActivate {
     if (user.role === 'admin' || user.role === 'super_admin') return true;
 
     if (user.status !== 'APPROVED') {
-       if (user.status === 'PENDING') throw new ForbiddenException('Account pending approval');
-       if (user.status === 'SUSPENDED') throw new ForbiddenException('Account suspended');
-       if (user.status === 'REJECTED') throw new ForbiddenException('Account rejected');
+      if (user.status === 'PENDING')
+        throw new ForbiddenException('Account pending approval');
+      if (user.status === 'SUSPENDED')
+        throw new ForbiddenException('Account suspended');
+      if (user.status === 'REJECTED')
+        throw new ForbiddenException('Account rejected');
     }
     return true;
   }

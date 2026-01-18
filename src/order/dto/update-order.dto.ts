@@ -35,22 +35,14 @@ export class UpdateOrderDto {
   @ApiPropertyOptional({ description: 'Payment method' })
   paymentMethod?: string;
 
-  @ApiPropertyOptional({
-    description: 'Shipping address (JSON)',
-    type: 'object',
-    additionalProperties: true,
-  })
-  shippingAddress?: Record<string, unknown>;
+  @ApiPropertyOptional({ description: 'Shipping address ID' })
+  shippingAddressId?: number;
 
   @ApiPropertyOptional({ description: 'Plain-text shipping address' })
   shippingAddressText?: string;
 
-  @ApiPropertyOptional({
-    description: 'Billing address (JSON)',
-    type: 'object',
-    additionalProperties: true,
-  })
-  billingAddress?: Record<string, unknown>;
+  @ApiPropertyOptional({ description: 'Billing address ID' })
+  billingAddressId?: number;
 
   @ApiPropertyOptional({ description: 'Delivery note' })
   deliveryNote?: string;
