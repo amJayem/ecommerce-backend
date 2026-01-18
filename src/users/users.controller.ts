@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   UseGuards,
@@ -42,7 +43,7 @@ export class UsersController {
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile returned' })
-  async getProfile(@GetUser('sub') userId: number) {
+  async getProfile(@GetUser('id') userId: number) {
     return this.usersService.getProfile(userId);
   }
 
@@ -50,7 +51,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Update profile information' })
   @ApiResponse({ status: 200, description: 'Profile updated' })
   async updateProfile(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Body() dto: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(userId, dto);
@@ -62,7 +63,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Update profile avatar' })
   @UseInterceptors(FileInterceptor('file'))
   async updateAvatar(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.usersService.updateAvatar(userId, file);
@@ -72,7 +73,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change password' })
   async changePassword(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Body() dto: ChangePasswordDto,
   ) {
     await this.usersService.changePassword(userId, dto);
@@ -81,7 +82,7 @@ export class UsersController {
 
   @Delete('profile/delete-account')
   @ApiOperation({ summary: 'Soft-delete account' })
-  async deleteAccount(@GetUser('sub') userId: number) {
+  async deleteAccount(@GetUser('id') userId: number) {
     await this.usersService.softDeleteAccount(userId);
     return { message: 'Account deactivated' };
   }
@@ -90,14 +91,14 @@ export class UsersController {
 
   @Get('addresses')
   @ApiOperation({ summary: 'Get all saved addresses' })
-  async getAddresses(@GetUser('sub') userId: number) {
+  async getAddresses(@GetUser('id') userId: number) {
     return this.usersService.getAddresses(userId);
   }
 
   @Post('addresses')
   @ApiOperation({ summary: 'Create a new address' })
   async createAddress(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Body() dto: CreateAddressDto,
   ) {
     return this.usersService.createAddress(userId, dto);
@@ -106,18 +107,18 @@ export class UsersController {
   @Put('addresses/:id')
   @ApiOperation({ summary: 'Update an address' })
   async updateAddress(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Param('id', ParseIntPipe) addressId: number,
     @Body() dto: UpdateAddressDto,
   ) {
     return this.usersService.updateAddress(userId, addressId, dto);
   }
 
-  @Post('addresses/:id/default')
+  @Patch('addresses/:id/default')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set address as default' })
   async setDefaultAddress(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Param('id', ParseIntPipe) addressId: number,
   ) {
     return this.usersService.setDefaultAddress(userId, addressId);
@@ -126,7 +127,7 @@ export class UsersController {
   @Delete('addresses/:id')
   @ApiOperation({ summary: 'Delete an address' })
   async deleteAddress(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Param('id', ParseIntPipe) addressId: number,
   ) {
     await this.usersService.deleteAddress(userId, addressId);
@@ -137,14 +138,14 @@ export class UsersController {
 
   @Get('notifications')
   @ApiOperation({ summary: 'Get notification preferences' })
-  async getNotifications(@GetUser('sub') userId: number) {
+  async getNotifications(@GetUser('id') userId: number) {
     return this.usersService.getNotifications(userId);
   }
 
   @Put('notifications')
   @ApiOperation({ summary: 'Update notification preferences' })
   async updateNotifications(
-    @GetUser('sub') userId: number,
+    @GetUser('id') userId: number,
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
     return this.usersService.updateNotifications(userId, dto);

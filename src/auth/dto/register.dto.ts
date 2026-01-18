@@ -16,16 +16,35 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ description: 'Full name of the user', example: 'Jane Doe' })
+  @ApiPropertyOptional({
+    description: 'Full name of the user',
+    example: 'Jane Doe',
+  })
   @IsString()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @ApiProperty({
+    description: 'First name',
+    example: 'Jane',
+  })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({
+    description: 'Last name',
+    example: 'Doe',
+  })
+  @IsString()
+  lastName: string;
+
+  @ApiPropertyOptional({
     description: 'Street address',
     example: '221B Baker Street, London',
   })
   @IsString()
-  address: string;
+  @IsOptional()
+  address?: string;
 
   @ApiPropertyOptional({
     description: 'Avatar image URL',
@@ -56,6 +75,14 @@ export class RegisterDto {
   })
   @MinLength(6)
   password: string;
+
+  @ApiPropertyOptional({
+    description: 'Confirm password (for validation)',
+    example: 'P@ssw0rd!',
+  })
+  @IsString()
+  @IsOptional()
+  confirmPassword?: string;
 
   @ApiPropertyOptional({
     description: 'E.164 phone number',

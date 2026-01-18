@@ -29,14 +29,17 @@ export class AuthService {
     // 2. Create the user in DB
     const user = await this.prisma.user.create({
       data: {
-        address: dto.address,
         email: dto.email,
-        isVerified: dto.isVerified,
-        name: dto.name,
-        password: hashed,
+        name: dto.name || `${dto.firstName} ${dto.lastName}`,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        address: dto.address || 'N/A',
         phoneNumber: dto.phoneNumber ?? null,
+        phone: dto.phoneNumber ?? null,
+        password: hashed,
+        isVerified: dto.isVerified ?? false,
         role: dto.role || 'customer',
-        status, // Set status
+        status,
       },
     });
 

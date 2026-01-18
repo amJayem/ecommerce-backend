@@ -205,7 +205,31 @@ export class UsersService {
   }
 
   async createAddress(userId: number, dto: CreateAddressDto) {
-    // If isDefault is true, unset all other defaults
+    // 1. Fetch user for fallback info if needed
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    // 2. Handle defaults and mapping
+    const firstName =
+      dto.firstName || user.firstName || user.name.split(' ')[0] || 'N/A';
+    const lastName =
+      dto.lastName ||
+      user.lastName ||
+      user.name.split(' ').slice(1).join(' ') ||
+      'N/A';
+    const phone = dto.phone || user.phone || user.phoneNumber || 'N/A';
+    const country = dto.country || 'Bangladesh';
+
+    // Map addressType from DTO to addressName if addressName is missing
+    const addressName =
+      dto.addressName ||
+      dto.addressType ||
+      `${dto.street}${dto.state ? `, ${dto.state}` : ''}`;
+
+    // 3. If isDefault is true, unset all other defaults
     if (dto.isDefault) {
       await this.prisma.address.updateMany({
         where: { userId, addressType: 'saved' },
@@ -213,9 +237,17 @@ export class UsersService {
       });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { addressType: _, ...restDto } = dto;
+
     return this.prisma.address.create({
       data: {
-        ...dto,
+        ...restDto,
+        firstName,
+        lastName,
+        phone,
+        country,
+        addressName,
         userId,
         addressType: 'saved',
       },

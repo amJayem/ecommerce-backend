@@ -2,13 +2,15 @@ import { IsString, IsOptional, IsBoolean, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAddressDto {
-  @ApiProperty({ example: 'John' })
+  @ApiProperty({ example: 'John', required: false })
   @IsString()
-  firstName: string;
+  @IsOptional()
+  firstName?: string;
 
-  @ApiProperty({ example: 'Doe' })
+  @ApiProperty({ example: 'Doe', required: false })
   @IsString()
-  lastName: string;
+  @IsOptional()
+  lastName?: string;
 
   @ApiProperty({ example: '123 Main Street, Apt 4B' })
   @IsString()
@@ -26,21 +28,28 @@ export class CreateAddressDto {
   @IsString()
   zipCode: string;
 
-  @ApiProperty({ example: 'Bangladesh' })
+  @ApiProperty({ example: 'Bangladesh', required: false })
   @IsString()
-  country: string;
+  @IsOptional()
+  country?: string;
 
-  @ApiProperty({ example: '+8801234567890' })
+  @ApiProperty({ example: '+8801234567890', required: false })
   @IsString()
+  @IsOptional()
   @Matches(/^\+?[1-9]\d{1,14}$/, {
     message: 'Phone must be a valid international phone number',
   })
-  phone: string;
+  phone?: string;
 
   @ApiProperty({ example: 'Home', required: false })
   @IsOptional()
   @IsString()
   addressName?: string;
+
+  @ApiProperty({ example: 'Home', required: false })
+  @IsOptional()
+  @IsString()
+  addressType?: string;
 
   @ApiProperty({ example: false, required: false })
   @IsOptional()
