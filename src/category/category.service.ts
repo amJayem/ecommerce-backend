@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +10,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
+import { INCLUDE_DELETED } from '../prisma/prisma-soft-delete.extension';
 
 interface CategoryCsvRecord {
   id: string;
@@ -51,13 +53,14 @@ export class CategoryService {
 
       return category;
     } catch (error) {
+      console.error('CategoryService.create Error:', error);
       if (
         error instanceof ConflictException ||
         error instanceof NotFoundException
       ) {
         throw error;
       }
-      throw new Error('Failed to create category');
+      throw error;
     }
   }
 
@@ -68,7 +71,7 @@ export class CategoryService {
         : { isActive: true };
       const categories = await (this.prisma.category as any).findMany({
         where,
-        includeDeleted,
+        [INCLUDE_DELETED]: includeDeleted,
         include: {
           parent: true,
           children: true,
@@ -81,8 +84,8 @@ export class CategoryService {
 
       return categories;
     } catch (error) {
-      console.error(error);
-      throw new Error('Failed to fetch categories');
+      console.error('CategoryService.findAll Error:', error);
+      throw error;
     }
   }
 
@@ -90,7 +93,7 @@ export class CategoryService {
     try {
       const category = await (this.prisma.category as any).findUnique({
         where: { id },
-        includeDeleted,
+        [INCLUDE_DELETED]: includeDeleted,
         include: {
           parent: true,
           children: true,
@@ -119,10 +122,11 @@ export class CategoryService {
 
       return category;
     } catch (error) {
+      console.error('CategoryService.findOne Error:', error);
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new Error('Failed to fetch category');
+      throw error;
     }
   }
 
@@ -170,7 +174,7 @@ export class CategoryService {
       // Check if category exists (including deleted for restoration)
       const existingCategory = await (this.prisma.category as any).findUnique({
         where: { id },
-        includeDeleted: true,
+        [INCLUDE_DELETED]: true,
       });
 
       if (!existingCategory) {
@@ -330,7 +334,7 @@ export class CategoryService {
       // First verify the category exists
       const category = await (this.prisma.category as any).findUnique({
         where: { id },
-        includeDeleted,
+        [INCLUDE_DELETED]: includeDeleted,
       });
 
       if (!category) {
@@ -343,7 +347,7 @@ export class CategoryService {
           categoryId: id,
           ...(includeDeleted ? {} : { isActive: true }),
         },
-        includeDeleted,
+        [INCLUDE_DELETED]: includeDeleted,
         select: {
           id: true,
           name: true,
@@ -368,10 +372,11 @@ export class CategoryService {
 
       return products;
     } catch (error) {
+      console.error('CategoryService.getCategoryProducts Error:', error);
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new Error('Failed to fetch category products');
+      throw error;
     }
   }
 
@@ -429,80 +434,87 @@ export class CategoryService {
   }
 
   async importCategoriesFromCsv(buffer: Buffer) {
-    const records = parse(buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      cast: true,
-      bom: true,
-    }) as CategoryCsvRecord[];
+    try {
+      const records = parse(buffer, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        cast: true,
+        bom: true,
+      }) as CategoryCsvRecord[];
 
-    const results = {
-      created: 0,
-      updated: 0,
-      errors: [] as string[],
-    };
+      const results = {
+        created: 0,
+        updated: 0,
+        errors: [] as string[],
+      };
 
-    for (const record of records) {
-      try {
-        const categoryId = parseInt(record.id || '', 10);
-        const data = {
-          name: record.name,
-          slug: record.slug || this.generateSlugFromName(record.name),
-          description: record.description || '',
-          icon: record.icon || null,
-          image: record.image || null,
-          parentId: record.parentId ? parseInt(record.parentId, 10) : null,
-          isActive: String(record.isActive).toLowerCase() === 'true',
-          sortOrder: parseInt(record.sortOrder || '0', 10) || 0,
-          metaTitle: record.metaTitle || null,
-          metaDescription: record.metaDescription || null,
-          deletedAt: null, // Restore if soft-deleted
-        };
+      for (const record of records) {
+        try {
+          const categoryId = parseInt(record.id || '', 10);
+          const data = {
+            name: record.name,
+            slug: record.slug || this.generateSlugFromName(record.name),
+            description: record.description || '',
+            icon: record.icon || null,
+            image: record.image || null,
+            parentId: record.parentId ? parseInt(record.parentId, 10) : null,
+            isActive: String(record.isActive).toLowerCase() === 'true',
+            sortOrder: parseInt(record.sortOrder || '0', 10) || 0,
+            metaTitle: record.metaTitle || null,
+            metaDescription: record.metaDescription || null,
+            deletedAt: null, // Restore if soft-deleted
+          };
 
-        if (!data.name) {
-          throw new Error('Category name is required');
-        }
-
-        if (!isNaN(categoryId)) {
-          await this.prisma.category.upsert({
-            where: { id: categoryId },
-            update: data,
-            create: { ...data, id: categoryId },
-          });
-          results.updated++;
-        } else {
-          // Find by slug if no ID
-          if (!data.slug) {
-            throw new Error('Slug is required for categories without an ID');
+          if (!data.name) {
+            throw new Error('Category name is required');
           }
-          const existing = await this.prisma.category.findUnique({
-            where: { slug: data.slug },
-          });
 
-          if (existing) {
-            await this.prisma.category.update({
-              where: { id: existing.id },
-              data,
+          if (!isNaN(categoryId)) {
+            await this.prisma.category.upsert({
+              where: { id: categoryId },
+              update: data,
+              create: { ...data, id: categoryId },
             });
             results.updated++;
           } else {
-            await this.prisma.category.create({
-              data,
+            // Find by slug if no ID
+            if (!data.slug) {
+              throw new Error('Slug is required for categories without an ID');
+            }
+            const existing = await this.prisma.category.findUnique({
+              where: { slug: data.slug },
             });
-            results.created++;
-          }
-        }
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        results.errors.push(
-          `Error at category ${record.name || 'unknown'}: ${errorMessage}`,
-        );
-      }
-    }
 
-    return results;
+            if (existing) {
+              await this.prisma.category.update({
+                where: { id: existing.id },
+                data,
+              });
+              results.updated++;
+            } else {
+              await this.prisma.category.create({
+                data,
+              });
+              results.created++;
+            }
+          }
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          results.errors.push(
+            `Error at category ${record.name || 'unknown'}: ${errorMessage}`,
+          );
+        }
+      }
+
+      return results;
+    } catch (globalError: any) {
+      console.error('Category CSV Import Global Error:', globalError);
+      throw new BadRequestException(
+        `Invalid CSV format: ${globalError.message}`,
+      );
+    }
   }
 
   async getSampleCategoriesCsv(): Promise<string> {

@@ -1,5 +1,8 @@
 import { Prisma } from '@prisma/client';
 
+// Export Symbol for bypassing Prisma 6 runtime validation
+export const INCLUDE_DELETED = Symbol('includeDeleted');
+
 export const softDeleteExtension = Prisma.defineExtension({
   name: 'softDelete',
   model: {
@@ -62,80 +65,88 @@ export const softDeleteExtension = Prisma.defineExtension({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
-        const softArgs = { ...(args || {}) } as any;
-        const isSoftDeleteModel = ['product', 'category'].includes(
-          model.toLowerCase(),
-        );
+        try {
+          const softArgs = { ...(args || {}) } as any;
+          const isSoftDeleteModel = ['product', 'category'].includes(
+            model.toLowerCase(),
+          );
 
-        if (isSoftDeleteModel) {
-          if (
-            [
-              'findMany',
-              'findFirst',
-              'findUnique',
-              'count',
-              'aggregate',
-              'groupBy',
-            ].includes(operation)
-          ) {
-            const includeDeleted = softArgs.includeDeleted === true;
-            delete softArgs.includeDeleted; // Always clean up for Prisma
-
-            if (includeDeleted) {
-              return query(softArgs);
-            }
-
-            if (softArgs.where?.deletedAt === undefined) {
-              softArgs.where = {
-                ...softArgs.where,
-                deletedAt: null,
-              };
-            }
-          }
-        }
-
-        // Apply filters to relations in include/select recursively
-        const applyRelationalFilter = (obj: any) => {
-          if (!obj || typeof obj !== 'object') return;
-
-          if (obj.includeDeleted === true) {
-            delete obj.includeDeleted;
-            return; // Don't filter relations if includeDeleted is set at this level
-          }
-
-          for (const key in obj) {
-            // Check if this key corresponds to a soft-delete model in relations
+          if (isSoftDeleteModel) {
             if (
               [
-                'product',
-                'category',
-                'children',
-                'parent',
-                'products',
-                'items',
-              ].includes(key.toLowerCase())
+                'findMany',
+                'findFirst',
+                'findUnique',
+                'count',
+                'aggregate',
+                'groupBy',
+              ].includes(operation)
             ) {
-              if (obj[key] === true) {
-                obj[key] = { where: { deletedAt: null } };
-              } else if (typeof obj[key] === 'object') {
-                obj[key].where = {
-                  ...obj[key].where,
+              const includeDeleted = softArgs[INCLUDE_DELETED] === true;
+              delete softArgs[INCLUDE_DELETED]; // Always clean up for Prisma
+
+              if (includeDeleted) {
+                return query(softArgs);
+              }
+
+              if (softArgs.where?.deletedAt === undefined) {
+                softArgs.where = {
+                  ...softArgs.where,
                   deletedAt: null,
                 };
-                applyRelationalFilter(obj[key].include || obj[key].select);
               }
-            } else if (
-              key === 'include' ||
-              key === 'select' ||
-              key === '_count'
-            ) {
-              applyRelationalFilter(obj[key]);
             }
           }
-        };
 
-        applyRelationalFilter(softArgs);
-        return query(softArgs);
+          // Apply filters to relations in include/select recursively
+          const applyRelationalFilter = (obj: any) => {
+            if (!obj || typeof obj !== 'object') return;
+
+            if (obj[INCLUDE_DELETED] === true) {
+              delete obj[INCLUDE_DELETED];
+              return; // Don't filter relations if includeDeleted is set at this level
+            }
+
+            for (const key in obj) {
+              // Check if this key corresponds to a soft-delete model in relations
+              if (
+                [
+                  'product',
+                  'category',
+                  'children',
+                  'parent',
+                  'products',
+                  'items',
+                ].includes(key.toLowerCase())
+              ) {
+                if (obj[key] === true) {
+                  obj[key] = { where: { deletedAt: null } };
+                } else if (typeof obj[key] === 'object') {
+                  obj[key].where = {
+                    ...obj[key].where,
+                    deletedAt: null,
+                  };
+                  applyRelationalFilter(obj[key].include || obj[key].select);
+                }
+              } else if (
+                key === 'include' ||
+                key === 'select' ||
+                key === '_count'
+              ) {
+                applyRelationalFilter(obj[key]);
+              }
+            }
+          };
+
+          applyRelationalFilter(softArgs);
+          return query(softArgs);
+        } catch (error: any) {
+          console.error(
+            `SoftDelete Extension Error on ${model}.${operation}:`,
+            error,
+          );
+          throw error;
+        }
       },
     },
   },

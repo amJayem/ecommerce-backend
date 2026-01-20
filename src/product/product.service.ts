@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
+import { INCLUDE_DELETED } from '../prisma/prisma-soft-delete.extension';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -334,7 +335,7 @@ export class ProductService {
           orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
           skip,
           take: limit,
-          includeDeleted,
+          [INCLUDE_DELETED]: includeDeleted,
           include: {
             category: {
               select: {
@@ -346,7 +347,10 @@ export class ProductService {
             },
           },
         }),
-        (this.prisma.product as any).count({ where, includeDeleted }),
+        (this.prisma.product as any).count({
+          where,
+          [INCLUDE_DELETED]: includeDeleted,
+        }),
       ]);
 
       return {
@@ -383,7 +387,7 @@ export class ProductService {
     try {
       const product = await (this.prisma.product as any).findUnique({
         where: { id },
-        includeDeleted,
+        [INCLUDE_DELETED]: includeDeleted,
         include: {
           category: {
             select: {
@@ -497,7 +501,7 @@ export class ProductService {
       // Check if product exists (including deleted for restoration)
       const existingProduct = await (this.prisma.product as any).findUnique({
         where: { id },
-        includeDeleted: true,
+        [INCLUDE_DELETED]: true,
       });
 
       if (!existingProduct) {

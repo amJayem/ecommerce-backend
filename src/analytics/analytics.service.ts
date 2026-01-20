@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { INCLUDE_DELETED } from '../prisma/prisma-soft-delete.extension';
 import {
   AnalyticsSummaryDto,
   AnalyticsChartsDto,
@@ -183,7 +184,7 @@ export class AnalyticsService {
       }),
       (this.prisma.product as any).count({
         where: { OR: [{ isActive: false }, { NOT: { deletedAt: null } }] },
-        includeDeleted: true,
+        [INCLUDE_DELETED]: true,
       }),
       (this.prisma.product as any).findMany({
         where: {
@@ -202,7 +203,7 @@ export class AnalyticsService {
       }),
       (this.prisma.category as any).count({
         where: { OR: [{ isActive: false }, { NOT: { deletedAt: null } }] },
-        includeDeleted: true,
+        [INCLUDE_DELETED]: true,
       }),
     ]);
 
@@ -223,7 +224,7 @@ export class AnalyticsService {
     const productNames = await (this.prisma.product as any).findMany({
       where: { id: { in: topSelling.map((t) => t.productId) } },
       select: { id: true, name: true },
-      includeDeleted: true,
+      [INCLUDE_DELETED]: true,
     });
 
     const populatedTopSelling = topSelling.map((t) => ({
@@ -245,7 +246,7 @@ export class AnalyticsService {
     const productsWithCategory = await (this.prisma.product as any).findMany({
       where: { id: { in: categoryRevenue.map((cr) => cr.productId) } },
       select: { id: true, category: { select: { id: true, name: true } } },
-      includeDeleted: true,
+      [INCLUDE_DELETED]: true,
     });
 
     const catRevMap: Record<number, { name: string; revenue: number }> = {};
