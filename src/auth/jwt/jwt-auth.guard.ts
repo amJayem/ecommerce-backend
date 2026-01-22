@@ -12,13 +12,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
 
-    // Check if this is a public route by path (fallback if metadata doesn't work)
-    const publicPaths = ['/api/v1/orders/thank-you', '/api/v1/orders'];
-    // We check if the request.url STARTS with any of the public paths.
-    // Note: request.url includes query parameters, so 'startsWith' is safer than exact match.
-    // We also handle the case where the prefix might be slightly different depending on global prefix settings,
-    // so checking for both with and without the api/v1 prefix is safer if uncertain, but here we know the prefix.
-    const isPublicPath = publicPaths.some((path) => request.url.includes(path));
+    // Check if this is a public route by path
+    // Use exact match or specific startsWith to avoid false positives
+    // For example, /orders/my-orders should NOT match /orders (POST create)
+    const url = request.url.split('?')[0]; // Remove query params
+    const isPublicPath =
+      url === '/api/v1/orders' || // POST create order
+      url.startsWith('/api/v1/orders/thank-you') || // Thank you page
+      url.startsWith('/api/v1/orders/guest-lookup') || // Guest lookup
+      url.startsWith('/api/v1/orders/guest/'); // Guest order view
 
     // Try multiple ways to get the metadata
     const isPublicHandler = this.reflector.get<boolean>(

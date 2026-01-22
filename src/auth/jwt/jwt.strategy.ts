@@ -39,9 +39,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, refreshToken, ...userContext } = user;
 
-    return {
-      ...userContext,
+    const result = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.status,
       permissions: user.permissions,
     };
+
+    return result;
   }
 }

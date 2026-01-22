@@ -34,6 +34,44 @@ import { OrderStatus, PaymentStatus } from '@prisma/client';
 
 export { OrderStatus, PaymentStatus };
 
+// Address object for guest orders
+class CreateAddressDto {
+  @ApiProperty({ description: 'Full name', example: 'Asif Jayem' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ description: 'Phone number', example: '01759375796' })
+  @IsString()
+  phone: string;
+
+  @ApiProperty({ description: 'Address line 1', example: 'Dhaka' })
+  @IsString()
+  address1: string;
+
+  @ApiPropertyOptional({ description: 'Address line 2' })
+  @IsOptional()
+  @IsString()
+  address2?: string;
+
+  @ApiProperty({ description: 'City', example: 'Dhaka' })
+  @IsString()
+  city: string;
+
+  @ApiPropertyOptional({ description: 'State/Province' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({ description: 'Postal code', example: '1205' })
+  @IsString()
+  postalCode: string;
+
+  @ApiPropertyOptional({ description: 'Country', example: 'Bangladesh' })
+  @IsOptional()
+  @IsString()
+  country?: string;
+}
+
 // A single product in the order
 class CreateOrderItemDto {
   @ApiProperty({ description: 'Product ID', example: 202510291 })
@@ -139,22 +177,42 @@ export class CreateOrderDto {
   @IsString()
   paymentMethod?: string;
 
-  // Address IDs - linking to user's saved addresses or creating snapshots
-  @ApiProperty({
-    description: 'ID of the shipping address (from Saved Addresses)',
+  // Address IDs - for authenticated users with saved addresses
+  @ApiPropertyOptional({
+    description: 'ID of the shipping address (for authenticated users)',
     example: 1,
   })
+  @IsOptional()
   @IsNumber()
-  shippingAddressId: number;
+  shippingAddressId?: number;
 
   @ApiPropertyOptional({
-    description:
-      'ID of the billing address (from Saved Addresses, defaults to shipping if omitted)',
+    description: 'ID of the billing address (for authenticated users)',
     example: 2,
   })
   @IsOptional()
   @IsNumber()
   billingAddressId?: number;
+
+  // Address objects - for guest users
+  @ApiPropertyOptional({
+    description: 'Shipping address object (for guest users)',
+    type: CreateAddressDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateAddressDto)
+  shippingAddress?: CreateAddressDto;
+
+  @ApiPropertyOptional({
+    description:
+      'Billing address object (for guest users, defaults to shipping if omitted)',
+    type: CreateAddressDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateAddressDto)
+  billingAddress?: CreateAddressDto;
 
   // Plain-text version of the shipping address (for labels/quick display)
   @ApiPropertyOptional({

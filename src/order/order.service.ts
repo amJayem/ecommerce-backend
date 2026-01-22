@@ -118,7 +118,7 @@ export class OrderService {
   async createOrder(data: CreateOrderDto) {
     try {
       // USER ID IS OPTIONAL - Handle both authenticated and anonymous users
-      // If userId is provided, verify user exists
+      // If userId is provided, verify user exists and populate email
       if (data.userId) {
         const user = await this.prisma.user.findUnique({
           where: { id: data.userId },
@@ -127,10 +127,14 @@ export class OrderService {
         if (!user) {
           throw new NotFoundException('User not found');
         }
+
+        // Automatically set guestEmail from user's email if not already provided
+        if (!data.guestEmail) {
+          data.guestEmail = user.email;
+        }
       } else if (!data.guestEmail) {
-        // If no userId, guestEmail is recommended for tracking/lookup
-        // but we'll see if the business wants to enforce it.
-        // The prompt says "Store guest email for guest orders" so we should probably require it or allow it.
+        // If no userId and no guestEmail, this is an anonymous order without tracking
+        // You may want to require guestEmail for guest orders in the future
       }
 
       // Verify all products exist and have sufficient stock
@@ -150,16 +154,43 @@ export class OrderService {
         }
       }
 
-      // 1. Fetch source addresses to create snapshots
-      const sourceShipping = await this.prisma.address.findUnique({
-        where: { id: data.shippingAddressId },
-      });
-      if (!sourceShipping) {
-        throw new BadRequestException('Shipping address not found');
+      // Handle addresses: either IDs (authenticated users) or objects (guest users)
+      let sourceShipping: any;
+      let sourceBilling: any;
+
+      // Shipping address
+      if (data.shippingAddressId) {
+        // Authenticated user with saved address
+        sourceShipping = await this.prisma.address.findUnique({
+          where: { id: data.shippingAddressId },
+        });
+        if (!sourceShipping) {
+          throw new BadRequestException('Shipping address not found');
+        }
+      } else if (data.shippingAddress) {
+        // Guest user with address object - use it directly for snapshot
+        sourceShipping = {
+          firstName:
+            data.shippingAddress.name.split(' ')[0] ||
+            data.shippingAddress.name,
+          lastName:
+            data.shippingAddress.name.split(' ').slice(1).join(' ') || '',
+          street: data.shippingAddress.address1,
+          city: data.shippingAddress.city,
+          state: data.shippingAddress.state || '',
+          zipCode: data.shippingAddress.postalCode,
+          country: data.shippingAddress.country || 'Bangladesh',
+          phone: data.shippingAddress.phone,
+        };
+      } else {
+        throw new BadRequestException(
+          'Either shippingAddressId or shippingAddress object is required',
+        );
       }
 
-      let sourceBilling = sourceShipping;
+      // Billing address
       if (data.billingAddressId) {
+        // Authenticated user with saved billing address
         const foundBilling = await this.prisma.address.findUnique({
           where: { id: data.billingAddressId },
         });
@@ -167,6 +198,23 @@ export class OrderService {
           throw new BadRequestException('Billing address not found');
         }
         sourceBilling = foundBilling;
+      } else if (data.billingAddress) {
+        // Guest user with billing address object
+        sourceBilling = {
+          firstName:
+            data.billingAddress.name.split(' ')[0] || data.billingAddress.name,
+          lastName:
+            data.billingAddress.name.split(' ').slice(1).join(' ') || '',
+          street: data.billingAddress.address1,
+          city: data.billingAddress.city,
+          state: data.billingAddress.state || '',
+          zipCode: data.billingAddress.postalCode,
+          country: data.billingAddress.country || 'Bangladesh',
+          phone: data.billingAddress.phone,
+        };
+      } else {
+        // Default to shipping address
+        sourceBilling = sourceShipping;
       }
 
       // Pre-generate the order id outside the transaction to avoid nesting client calls
