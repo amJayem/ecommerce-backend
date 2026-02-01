@@ -46,6 +46,12 @@ export class ProductService {
       // Generate custom product ID
       const productId = await this.utilityService.generateProductId();
 
+      // Business logic: Auto-publish if isActive is true and status is draft
+      const isActive = data.isActive ?? true;
+      const requestedStatus = data.status || 'draft';
+      const finalStatus =
+        isActive && requestedStatus === 'draft' ? 'published' : requestedStatus;
+
       const product = await this.prisma.product.create({
         data: {
           id: productId,
@@ -64,11 +70,11 @@ export class ProductService {
           unit: data.unit || 'piece',
           weight: data.weight,
           images: images,
-          isActive: data.isActive ?? true,
+          isActive: isActive,
           tags: tags,
           featured: data.featured ?? false,
           bestseller: data.bestseller ?? false,
-          status: data.status || 'draft',
+          status: finalStatus,
           sku: data.sku,
           brand: data.brand,
           coverImage: data.coverImage,
