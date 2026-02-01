@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProductService } from '../product.service';
+import { ProductSearchService } from '../services/product-search.service';
+import { ProductInventoryService } from '../services/product-inventory.service';
 import {
   SearchProductDto,
   SearchProductResponseDto,
@@ -20,7 +22,11 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 @ApiTags('Products')
 @Controller('products')
 export class ProductPublicController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly searchService: ProductSearchService,
+    private readonly inventoryService: ProductInventoryService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard, ApprovalGuard)
@@ -77,7 +83,7 @@ export class ProductPublicController {
   @ApiOperation({ summary: 'Get featured products' })
   @ApiResponse({ status: 200, description: 'Featured products returned' })
   getFeatured() {
-    return this.productService.getFeatured();
+    return this.inventoryService.getFeatured();
   }
 
   @Get('bestsellers')
@@ -86,7 +92,7 @@ export class ProductPublicController {
   @ApiOperation({ summary: 'Get bestseller products' })
   @ApiResponse({ status: 200, description: 'Bestseller products returned' })
   getBestsellers() {
-    return this.productService.getBestsellers();
+    return this.inventoryService.getBestsellers();
   }
 
   @Get('search')
@@ -143,7 +149,7 @@ export class ProductPublicController {
   })
   @ApiResponse({ status: 400, description: 'Validation error' })
   search(@Query() searchDto: SearchProductDto) {
-    return this.productService.search(searchDto);
+    return this.searchService.search(searchDto);
   }
 
   @Get(':id')

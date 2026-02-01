@@ -19,6 +19,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { ProductService } from '../product.service';
+import { ProductCsvService } from '../services/product-csv.service';
+import { ProductInventoryService } from '../services/product-inventory.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { JwtAuthGuard } from '../../auth/jwt/jwt-auth.guard';
@@ -37,7 +39,11 @@ import {
 @Controller('admin/products')
 @UseGuards(JwtAuthGuard, ApprovalGuard, PermissionGuard)
 export class ProductAdminController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly csvService: ProductCsvService,
+    private readonly inventoryService: ProductInventoryService,
+  ) {}
 
   @Get()
   @Permissions('product.read')
@@ -129,7 +135,7 @@ export class ProductAdminController {
   @Permissions('product.read')
   @ApiOperation({ summary: 'Export sample product CSV template' })
   async exportSample(@Res() res: Response) {
-    const csv = await this.productService.getSampleProductsCsv();
+    const csv = await this.csvService.getSampleProductsCsv();
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
@@ -142,7 +148,7 @@ export class ProductAdminController {
   @Permissions('product.read')
   @ApiOperation({ summary: 'Export all products to CSV' })
   async exportCsv(@Res() res: Response) {
-    const csv = await this.productService.exportProductsToCsv();
+    const csv = await this.csvService.exportProductsToCsv();
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
@@ -159,7 +165,7 @@ export class ProductAdminController {
     if (!file) {
       throw new BadRequestException('CSV file is required');
     }
-    return this.productService.importProductsFromCsv(file.buffer);
+    return this.csvService.importProductsFromCsv(file.buffer);
   }
 
   @Patch(':id/stock')
@@ -178,6 +184,6 @@ export class ProductAdminController {
     @Param('id', ParseIntPipe) id: number,
     @Body() data: { quantity: number },
   ) {
-    return this.productService.updateStock(id, data.quantity);
+    return this.inventoryService.updateStock(id, data.quantity);
   }
 }

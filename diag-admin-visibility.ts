@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
-import { softDeleteExtension } from './src/prisma/prisma-soft-delete.extension';
 import { PrismaService } from './src/prisma/prisma.service';
 import { ProductService } from './src/product/product.service';
+import { ProductUtilityService } from './src/product/services/product-utility.service';
 
 async function main() {
   console.log('--- Admin Product Visibility Diagnostic (Detailed) ---');
 
   const prismaService = new PrismaService();
-  const productService = new ProductService(prismaService);
+  const utilityService = new ProductUtilityService(prismaService);
+  const productService = new ProductService(prismaService, utilityService);
 
   try {
     console.log('Fetching products with includeDeleted: true...');
