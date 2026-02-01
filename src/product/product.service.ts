@@ -292,6 +292,7 @@ export class ProductService {
       }
 
       const where: {
+        isActive: boolean;
         categoryId?: number;
         status?: string;
         featured?: boolean;
@@ -301,7 +302,9 @@ export class ProductService {
           description?: { contains: string; mode: 'insensitive' };
           tags?: { hasSome: string[] };
         }>;
-      } = {};
+      } = {
+        isActive: true, // Only show active products to customers
+      };
 
       if (finalCategoryId) {
         where.categoryId = finalCategoryId;
@@ -571,10 +574,22 @@ export class ProductService {
       // Check if product exists
       const existingProduct = await this.prisma.product.findUnique({
         where: { id },
+        include: {
+          _count: {
+            select: { orderItems: true },
+          },
+        },
       });
 
       if (!existingProduct) {
         throw new NotFoundException('Product not found');
+      }
+
+      // Check if product has any orders
+      if (existingProduct._count.orderItems > 0) {
+        throw new ConflictException(
+          `Cannot delete product with existing orders. This product has ${existingProduct._count.orderItems} order(s). Consider setting isActive to false instead.`,
+        );
       }
 
       await this.prisma.product.delete({ where: { id } });
